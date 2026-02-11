@@ -1,7 +1,7 @@
 app:
   name: "Foods & Drinks API"
   env: "development"
-  port: 8080
+  port: 8000
 
 database:
   host: "localhost"
