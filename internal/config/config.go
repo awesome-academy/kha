@@ -1,0 +1,83 @@
+package config
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/spf13/viper"
+)
+
+type Config struct {
+	App      AppConfig      `mapstructure:"app"`
+	Database DatabaseConfig `mapstructure:"database"`
+	JWT      JWTConfig      `mapstructure:"jwt"`
+}
+
+type AppConfig struct {
+	Name string `mapstructure:"name"`
+	Env  string `mapstructure:"env"`
+	Port int    `mapstructure:"port"`
+}
+
+type DatabaseConfig struct {
+	Host            string `mapstructure:"host"`
+	Port            int    `mapstructure:"port"`
+	Username        string `mapstructure:"username"`
+	Password        string `mapstructure:"password"`
+	DBName          string `mapstructure:"dbname"`
+	Charset         string `mapstructure:"charset"`
+	ParseTime       bool   `mapstructure:"parse_time"`
+	Loc             string `mapstructure:"loc"`
+	MaxIdleConns    int    `mapstructure:"max_idle_conns"`
+	MaxOpenConns    int    `mapstructure:"max_open_conns"`
+	ConnMaxLifetime int    `mapstructure:"conn_max_lifetime"`
+}
+
+type JWTConfig struct {
+	Secret     string        `mapstructure:"secret"`
+	Expiration time.Duration `mapstructure:"expiration"`
+}
+
+func LoadConfig(path string) (*Config, error) {
+	viper.SetConfigFile(path)
+	viper.SetConfigType("yaml")
+
+	viper.AutomaticEnv()
+
+	if err := viper.ReadInConfig(); err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	var config Config
+	if err := viper.Unmarshal(&config); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	return &config, nil
+}
+
+func (d *DatabaseConfig) DSN() string {
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=%t&loc=%s",
+		d.Username,
+		d.Password,
+		d.Host,
+		d.Port,
+		d.DBName,
+		d.Charset,
+		d.ParseTime,
+		d.Loc,
+	)
+}
+
+func (d *DatabaseConfig) MigrationDSN() string {
+	return fmt.Sprintf("mysql://%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=%t&loc=%s&multiStatements=true",
+		d.Username,
+		d.Password,
+		d.Host,
+		d.Port,
+		d.DBName,
+		d.Charset,
+		d.ParseTime,
+		d.Loc,
+	)
+}

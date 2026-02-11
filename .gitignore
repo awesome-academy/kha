@@ -1,1 +1,39 @@
-/.idea
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Go
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Config (contains secrets)
+config.yaml
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+tmp/
+*.tmp
+
+# Coverage
+coverage.out
+coverage.html
+
+# Air live reload
+.air.toml
