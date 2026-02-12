@@ -15,9 +15,9 @@ type Rating struct {
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 
 	// Relationships
-	User    User    `gorm:"foreignKey:UserID" json:"user,omitempty"`
-	Product Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
-	Order   *Order  `gorm:"foreignKey:OrderID" json:"order,omitempty"`
+	User    *User    `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	Product *Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
+	Order   *Order   `gorm:"foreignKey:OrderID" json:"order,omitempty"`
 }
 
 func (Rating) TableName() string {

@@ -40,7 +40,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create migrate instance: %v", err)
 	}
-	defer m.Close()
+	defer func() {
+		sourceErr, dbErr := m.Close()
+		if sourceErr != nil {
+			log.Printf("Warning: failed to close migration source: %v", sourceErr)
+		}
+		if dbErr != nil {
+			log.Printf("Warning: failed to close database connection: %v", dbErr)
+		}
+	}()
 
 	switch *command {
 	case "up":

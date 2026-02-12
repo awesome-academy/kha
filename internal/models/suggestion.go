@@ -17,7 +17,7 @@ type Suggestion struct {
 	UpdatedAt   time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 
 	// Relationships
-	User     User      `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	User     *User     `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	Category *Category `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
 }
 

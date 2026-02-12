@@ -38,11 +38,8 @@ func main() {
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler()
 
-	// Setup router
-	router := routes.SetupRouter(healthHandler)
-
-	// Add CORS middleware
-	router.Use(middleware.CORSConfig())
+	// Setup router with CORS middleware
+	router := routes.SetupRouter(healthHandler, middleware.CORSConfig())
 
 	// Start server
 	addr := fmt.Sprintf(":%d", cfg.App.Port)

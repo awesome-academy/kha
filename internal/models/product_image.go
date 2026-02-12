@@ -14,7 +14,7 @@ type ProductImage struct {
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
 
 	// Relationships
-	Product Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
+	Product *Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
 }
 
 func (ProductImage) TableName() string {

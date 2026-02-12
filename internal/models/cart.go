@@ -28,8 +28,8 @@ type CartItem struct {
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 
 	// Relationships
-	Cart    Cart    `gorm:"foreignKey:CartID" json:"cart,omitempty"`
-	Product Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
+	Cart    *Cart    `gorm:"foreignKey:CartID" json:"cart,omitempty"`
+	Product *Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
 }
 
 func (CartItem) TableName() string {

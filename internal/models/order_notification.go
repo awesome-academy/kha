@@ -17,7 +17,7 @@ type OrderNotification struct {
 	UpdatedAt    time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 
 	// Relationships
-	Order Order `gorm:"foreignKey:OrderID" json:"order,omitempty"`
+	Order *Order `gorm:"foreignKey:OrderID" json:"order,omitempty"`
 }
 
 func (OrderNotification) TableName() string {

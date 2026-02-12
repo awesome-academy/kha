@@ -5,10 +5,11 @@ import (
 	"github.com/kha/foods-drinks/internal/handler"
 )
 
-func SetupRouter(healthHandler *handler.HealthHandler) *gin.Engine {
+func SetupRouter(healthHandler *handler.HealthHandler, corsMiddleware gin.HandlerFunc) *gin.Engine {
 	router := gin.New()
 
-	// Global middleware
+	// Global middleware - order matters!
+	router.Use(corsMiddleware) // CORS first
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 

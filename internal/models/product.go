@@ -23,7 +23,7 @@ type Product struct {
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// Relationships
-	Category   Category       `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
+	Category   *Category      `gorm:"foreignKey:CategoryID" json:"category,omitempty"`
 	Images     []ProductImage `gorm:"foreignKey:ProductID" json:"images,omitempty"`
 	CartItems  []CartItem     `gorm:"foreignKey:ProductID" json:"cart_items,omitempty"`
 	OrderItems []OrderItem    `gorm:"foreignKey:ProductID" json:"order_items,omitempty"`

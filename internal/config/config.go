@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/spf13/viper"
@@ -58,26 +59,26 @@ func LoadConfig(path string) (*Config, error) {
 
 func (d *DatabaseConfig) DSN() string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=%t&loc=%s",
-		d.Username,
-		d.Password,
+		url.QueryEscape(d.Username),
+		url.QueryEscape(d.Password),
 		d.Host,
 		d.Port,
 		d.DBName,
 		d.Charset,
 		d.ParseTime,
-		d.Loc,
+		url.QueryEscape(d.Loc),
 	)
 }
 
 func (d *DatabaseConfig) MigrationDSN() string {
 	return fmt.Sprintf("mysql://%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=%t&loc=%s&multiStatements=true",
-		d.Username,
-		d.Password,
+		url.QueryEscape(d.Username),
+		url.QueryEscape(d.Password),
 		d.Host,
 		d.Port,
 		d.DBName,
 		d.Charset,
 		d.ParseTime,
-		d.Loc,
+		url.QueryEscape(d.Loc),
 	)
 }

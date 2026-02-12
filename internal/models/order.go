@@ -48,8 +48,8 @@ type OrderItem struct {
 	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`
 
 	// Relationships
-	Order   Order   `gorm:"foreignKey:OrderID" json:"order,omitempty"`
-	Product Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
+	Order   *Order   `gorm:"foreignKey:OrderID" json:"order,omitempty"`
+	Product *Product `gorm:"foreignKey:ProductID" json:"product,omitempty"`
 }
 
 func (OrderItem) TableName() string {
