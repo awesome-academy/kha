@@ -8,7 +8,9 @@ import (
 	"github.com/kha/foods-drinks/internal/config"
 	"github.com/kha/foods-drinks/internal/handler"
 	"github.com/kha/foods-drinks/internal/middleware"
+	"github.com/kha/foods-drinks/internal/repository"
 	"github.com/kha/foods-drinks/internal/routes"
+	"github.com/kha/foods-drinks/internal/service"
 	"github.com/kha/foods-drinks/pkg/database"
 )
 
@@ -35,11 +37,23 @@ func main() {
 
 	log.Println("Database connected successfully!")
 
+	// Initialize repositories
+	userRepo := repository.NewUserRepository(db)
+
+	// Initialize services
+	authService := service.NewAuthService(userRepo, &cfg.JWT)
+
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler()
+	authHandler := handler.NewAuthHandler(authService)
 
-	// Setup router with CORS middleware
-	router := routes.SetupRouter(healthHandler, middleware.CORSConfig())
+	// Setup router with dependencies
+	deps := &routes.RouterDependencies{
+		HealthHandler:  healthHandler,
+		AuthHandler:    authHandler,
+		CorsMiddleware: middleware.CORSConfig(),
+	}
+	router := routes.SetupRouter(deps)
 
 	// Start server
 	addr := fmt.Sprintf(":%d", cfg.App.Port)
