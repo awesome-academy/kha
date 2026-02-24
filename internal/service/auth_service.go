@@ -204,6 +204,32 @@ func (s *AuthService) GetUserByID(id uint) (*models.User, error) {
 	return user, nil
 }
 
+// UpdateProfile updates user profile
+func (s *AuthService) UpdateProfile(userID uint, req *dto.UpdateProfileRequest) (*models.User, error) {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	// Update fields
+	user.FullName = req.FullName
+	if req.Phone != nil {
+		user.Phone = req.Phone
+	}
+	if req.Address != nil {
+		user.Address = req.Address
+	}
+
+	if err := s.userRepo.Update(user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
 // toUserResponse converts a User model to UserResponse DTO
 func (s *AuthService) toUserResponse(user *models.User) dto.UserResponse {
 	return dto.UserResponse{

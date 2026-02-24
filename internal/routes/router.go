@@ -3,6 +3,7 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/kha/foods-drinks/internal/handler"
+	"github.com/kha/foods-drinks/internal/middleware"
 )
 
 // RouterDependencies holds all dependencies for router setup
@@ -10,6 +11,7 @@ type RouterDependencies struct {
 	HealthHandler  *handler.HealthHandler
 	AuthHandler    *handler.AuthHandler
 	CorsMiddleware gin.HandlerFunc
+	AuthMiddleware *middleware.AuthMiddleware
 }
 
 func SetupRouter(deps *RouterDependencies) *gin.Engine {
@@ -42,14 +44,19 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 
 		// Protected routes (require authentication)
 		protected := v1.Group("")
+		protected.Use(deps.AuthMiddleware.RequireAuth())
 		{
-			_ = protected // TODO: Add auth middleware and protected routes
+			// Profile routes
+			protected.GET("/profile", deps.AuthHandler.GetProfile)
+			protected.PUT("/profile", deps.AuthHandler.UpdateProfile)
 		}
 
 		// Admin routes (require admin role)
 		admin := v1.Group("/admin")
+		admin.Use(deps.AuthMiddleware.RequireAuth())
+		admin.Use(deps.AuthMiddleware.RequireAdmin())
 		{
-			_ = admin // TODO: Add admin middleware and admin routes
+			_ = admin // TODO: Add admin routes
 		}
 	}
 

@@ -44,3 +44,10 @@ type ErrorResponse struct {
 	Message string            `json:"message"`
 	Details map[string]string `json:"details,omitempty"`
 }
+
+// UpdateProfileRequest represents the request body for updating user profile
+type UpdateProfileRequest struct {
+	FullName string  `json:"full_name" binding:"required,min=2,max=255"`
+	Phone    *string `json:"phone" binding:"omitempty,min=10,max=20"`
+	Address  *string `json:"address" binding:"omitempty,max=500"`
+}

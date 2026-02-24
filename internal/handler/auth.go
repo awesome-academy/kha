@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/kha/foods-drinks/internal/dto"
+	"github.com/kha/foods-drinks/internal/middleware"
 	"github.com/kha/foods-drinks/internal/service"
 )
 
@@ -151,4 +152,129 @@ func (h *AuthHandler) handleAuthError(c *gin.Context, err error) {
 			Message: "An unexpected error occurred",
 		})
 	}
+}
+
+// GetProfile godoc
+// @Summary Get current user profile
+// @Description Get the profile of the currently authenticated user
+// @Tags profile
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} dto.UserResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /api/v1/profile [get]
+func (h *AuthHandler) GetProfile(c *gin.Context) {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Error:   "unauthorized",
+			Message: "User not authenticated",
+		})
+		return
+	}
+
+	user, err := h.authService.GetUserByID(userID)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{
+				Error:   "user_not_found",
+				Message: "User not found",
+			})
+			return
+		}
+		log.Printf("Failed to get user profile: %v", err)
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Error:   "internal_error",
+			Message: "Failed to retrieve user profile",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.UserResponse{
+		ID:              user.ID,
+		Email:           user.Email,
+		FullName:        user.FullName,
+		Phone:           user.Phone,
+		Address:         user.Address,
+		AvatarURL:       user.AvatarURL,
+		Role:            user.Role,
+		Status:          user.Status,
+		EmailVerifiedAt: user.EmailVerifiedAt,
+		CreatedAt:       user.CreatedAt,
+		UpdatedAt:       user.UpdatedAt,
+	})
+}
+
+// UpdateProfile godoc
+// @Summary Update current user profile
+// @Description Update the profile of the currently authenticated user
+// @Tags profile
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.UpdateProfileRequest true "Update profile request"
+// @Success 200 {object} dto.UserResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /api/v1/profile [put]
+func (h *AuthHandler) UpdateProfile(c *gin.Context) {
+	userID, ok := middleware.GetUserID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{
+			Error:   "unauthorized",
+			Message: "User not authenticated",
+		})
+		return
+	}
+
+	var req dto.UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.handleValidationError(c, err)
+		return
+	}
+
+	// Trim whitespace
+	req.FullName = strings.TrimSpace(req.FullName)
+	if req.Phone != nil {
+		trimmed := strings.TrimSpace(*req.Phone)
+		req.Phone = &trimmed
+	}
+	if req.Address != nil {
+		trimmed := strings.TrimSpace(*req.Address)
+		req.Address = &trimmed
+	}
+
+	user, err := h.authService.UpdateProfile(userID, &req)
+	if err != nil {
+		if errors.Is(err, service.ErrUserNotFound) {
+			c.JSON(http.StatusNotFound, dto.ErrorResponse{
+				Error:   "user_not_found",
+				Message: "User not found",
+			})
+			return
+		}
+		log.Printf("Failed to update user profile: %v", err)
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
+			Error:   "internal_error",
+			Message: "Failed to update user profile",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.UserResponse{
+		ID:              user.ID,
+		Email:           user.Email,
+		FullName:        user.FullName,
+		Phone:           user.Phone,
+		Address:         user.Address,
+		AvatarURL:       user.AvatarURL,
+		Role:            user.Role,
+		Status:          user.Status,
+		EmailVerifiedAt: user.EmailVerifiedAt,
+		CreatedAt:       user.CreatedAt,
+		UpdatedAt:       user.UpdatedAt,
+	})
 }

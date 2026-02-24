@@ -47,11 +47,15 @@ func main() {
 	healthHandler := handler.NewHealthHandler()
 	authHandler := handler.NewAuthHandler(authService)
 
+	// Initialize middleware
+	authMiddleware := middleware.NewAuthMiddleware(authService)
+
 	// Setup router with dependencies
 	deps := &routes.RouterDependencies{
 		HealthHandler:  healthHandler,
 		AuthHandler:    authHandler,
 		CorsMiddleware: middleware.CORSConfig(),
+		AuthMiddleware: authMiddleware,
 	}
 	router := routes.SetupRouter(deps)
 
