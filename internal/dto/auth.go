@@ -51,3 +51,21 @@ type UpdateProfileRequest struct {
 	Phone    *string `json:"phone" binding:"omitempty,min=10,max=20"`
 	Address  *string `json:"address" binding:"omitempty,max=500"`
 }
+
+// OAuthURLResponse represents the response for OAuth URL request
+type OAuthURLResponse struct {
+	URL      string `json:"url"`
+	Provider string `json:"provider"`
+	State    string `json:"state"`
+}
+
+// OAuthCallbackRequest represents the OAuth callback query parameters
+type OAuthCallbackRequest struct {
+	Code  string `form:"code" binding:"required"`
+	State string `form:"state" binding:"required"`
+}
+
+// OAuthProvidersResponse represents the list of supported OAuth providers
+type OAuthProvidersResponse struct {
+	Providers []string `json:"providers"`
+}

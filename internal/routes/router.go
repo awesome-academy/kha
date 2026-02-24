@@ -10,6 +10,7 @@ import (
 type RouterDependencies struct {
 	HealthHandler  *handler.HealthHandler
 	AuthHandler    *handler.AuthHandler
+	OAuthHandler   *handler.OAuthHandler
 	CorsMiddleware gin.HandlerFunc
 	AuthMiddleware *middleware.AuthMiddleware
 }
@@ -34,6 +35,11 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 		{
 			auth.POST("/register", deps.AuthHandler.Register)
 			auth.POST("/login", deps.AuthHandler.Login)
+
+			// OAuth routes
+			auth.GET("/oauth/providers", deps.OAuthHandler.GetProviders)
+			auth.GET("/:provider", deps.OAuthHandler.InitiateOAuth)
+			auth.GET("/:provider/callback", deps.OAuthHandler.HandleCallback)
 		}
 
 		// Public routes

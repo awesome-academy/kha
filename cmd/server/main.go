@@ -39,13 +39,16 @@ func main() {
 
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
+	socialAuthRepo := repository.NewSocialAuthRepository(db)
 
 	// Initialize services
 	authService := service.NewAuthService(userRepo, &cfg.JWT)
+	oauthService := service.NewOAuthService(userRepo, socialAuthRepo, authService, &cfg.OAuth)
 
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler()
 	authHandler := handler.NewAuthHandler(authService)
+	oauthHandler := handler.NewOAuthHandler(oauthService)
 
 	// Initialize middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
@@ -54,6 +57,7 @@ func main() {
 	deps := &routes.RouterDependencies{
 		HealthHandler:  healthHandler,
 		AuthHandler:    authHandler,
+		OAuthHandler:   oauthHandler,
 		CorsMiddleware: middleware.CORSConfig(),
 		AuthMiddleware: authMiddleware,
 	}

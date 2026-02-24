@@ -12,6 +12,7 @@ type Config struct {
 	App      AppConfig      `mapstructure:"app"`
 	Database DatabaseConfig `mapstructure:"database"`
 	JWT      JWTConfig      `mapstructure:"jwt"`
+	OAuth    OAuthConfig    `mapstructure:"oauth"`
 }
 
 type AppConfig struct {
@@ -37,6 +38,20 @@ type DatabaseConfig struct {
 type JWTConfig struct {
 	Secret     string        `mapstructure:"secret"`
 	Expiration time.Duration `mapstructure:"expiration"`
+}
+
+// OAuthConfig holds all OAuth provider configurations
+type OAuthConfig struct {
+	Google   OAuthProviderConfig `mapstructure:"google"`
+	Facebook OAuthProviderConfig `mapstructure:"facebook"`
+	Twitter  OAuthProviderConfig `mapstructure:"twitter"`
+}
+
+// OAuthProviderConfig holds configuration for a single OAuth provider
+type OAuthProviderConfig struct {
+	ClientID     string `mapstructure:"client_id"`
+	ClientSecret string `mapstructure:"client_secret"`
+	RedirectURL  string `mapstructure:"redirect_url"`
 }
 
 func LoadConfig(path string) (*Config, error) {
