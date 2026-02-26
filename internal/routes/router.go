@@ -11,8 +11,10 @@ type RouterDependencies struct {
 	HealthHandler  *handler.HealthHandler
 	AuthHandler    *handler.AuthHandler
 	OAuthHandler   *handler.OAuthHandler
+	ProfileHandler *handler.ProfileHandler
 	CorsMiddleware gin.HandlerFunc
 	AuthMiddleware *middleware.AuthMiddleware
+	UploadPath     string
 }
 
 func SetupRouter(deps *RouterDependencies) *gin.Engine {
@@ -22,6 +24,11 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 	router.Use(deps.CorsMiddleware) // CORS first
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
+
+	// Serve uploaded files as static content
+	if deps.UploadPath != "" {
+		router.Static("/uploads", deps.UploadPath)
+	}
 
 	// Health check (public)
 	router.GET("/health", deps.HealthHandler.HealthCheck)
@@ -58,6 +65,10 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 			// Profile routes
 			protected.GET("/profile", deps.AuthHandler.GetProfile)
 			protected.PUT("/profile", deps.AuthHandler.UpdateProfile)
+
+			// Avatar routes
+			protected.POST("/profile/avatar", deps.ProfileHandler.UploadAvatar)
+			protected.DELETE("/profile/avatar", deps.ProfileHandler.DeleteAvatar)
 		}
 
 		// Admin routes (require admin role)

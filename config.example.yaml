@@ -34,3 +34,12 @@ oauth:
   #   client_secret: "your-twitter-client-secret"
   #   redirect_url: "http://localhost:8000/api/v1/auth/twitter/callback"
 
+upload:
+  path: "uploads/avatars"
+  max_size: 2097152  # 2MB in bytes
+  allowed_types:
+    - "jpg"
+    - "jpeg"
+    - "png"
+    - "webp"
+
