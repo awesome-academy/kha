@@ -5,11 +5,16 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 	"github.com/kha/foods-drinks/internal/config"
 	"github.com/kha/foods-drinks/internal/handler"
 	"github.com/kha/foods-drinks/internal/middleware"
+	"github.com/kha/foods-drinks/internal/repository"
 	"github.com/kha/foods-drinks/internal/routes"
+	"github.com/kha/foods-drinks/internal/service"
 	"github.com/kha/foods-drinks/pkg/database"
+	customValidator "github.com/kha/foods-drinks/pkg/validator"
 )
 
 func main() {
@@ -17,6 +22,13 @@ func main() {
 	cfg, err := config.LoadConfig("config.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Register custom validators
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		if err := customValidator.RegisterCustomValidators(v); err != nil {
+			log.Fatalf("Failed to register custom validators: %v", err)
+		}
 	}
 
 	// Set Gin mode based on environment
@@ -35,11 +47,31 @@ func main() {
 
 	log.Println("Database connected successfully!")
 
+	// Initialize repositories
+	userRepo := repository.NewUserRepository(db)
+	socialAuthRepo := repository.NewSocialAuthRepository(db)
+
+	// Initialize services
+	authService := service.NewAuthService(userRepo, &cfg.JWT)
+	oauthService := service.NewOAuthService(userRepo, socialAuthRepo, authService, &cfg.OAuth)
+
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler()
+	authHandler := handler.NewAuthHandler(authService)
+	oauthHandler := handler.NewOAuthHandler(oauthService)
 
-	// Setup router with CORS middleware
-	router := routes.SetupRouter(healthHandler, middleware.CORSConfig())
+	// Initialize middleware
+	authMiddleware := middleware.NewAuthMiddleware(authService)
+
+	// Setup router with dependencies
+	deps := &routes.RouterDependencies{
+		HealthHandler:  healthHandler,
+		AuthHandler:    authHandler,
+		OAuthHandler:   oauthHandler,
+		CorsMiddleware: middleware.CORSConfig(),
+		AuthMiddleware: authMiddleware,
+	}
+	router := routes.SetupRouter(deps)
 
 	// Start server
 	addr := fmt.Sprintf(":%d", cfg.App.Port)
