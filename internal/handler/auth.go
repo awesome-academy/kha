@@ -44,8 +44,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// Trim whitespace
-	req.Email = strings.TrimSpace(req.Email)
+	// Normalize email: trim whitespace and convert to lowercase
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 	req.FullName = strings.TrimSpace(req.FullName)
 
 	resp, err := h.authService.Register(&req)
@@ -76,8 +76,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Trim whitespace
-	req.Email = strings.TrimSpace(req.Email)
+	// Normalize email: trim whitespace and convert to lowercase
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 
 	resp, err := h.authService.Login(&req)
 	if err != nil {
@@ -104,6 +104,8 @@ func (h *AuthHandler) handleValidationError(c *gin.Context, err error) {
 				details[field] = field + " must be at least " + fe.Param() + " characters"
 			case "max":
 				details[field] = field + " must be at most " + fe.Param() + " characters"
+			case "password_strength":
+				details[field] = "password must contain at least one uppercase, one lowercase, one digit, and one special character"
 			default:
 				details[field] = field + " is invalid"
 			}
@@ -192,19 +194,7 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.UserResponse{
-		ID:              user.ID,
-		Email:           user.Email,
-		FullName:        user.FullName,
-		Phone:           user.Phone,
-		Address:         user.Address,
-		AvatarURL:       user.AvatarURL,
-		Role:            user.Role,
-		Status:          user.Status,
-		EmailVerifiedAt: user.EmailVerifiedAt,
-		CreatedAt:       user.CreatedAt,
-		UpdatedAt:       user.UpdatedAt,
-	})
+	c.JSON(http.StatusOK, dto.ToUserResponse(user))
 }
 
 // UpdateProfile godoc
@@ -264,17 +254,5 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, dto.UserResponse{
-		ID:              user.ID,
-		Email:           user.Email,
-		FullName:        user.FullName,
-		Phone:           user.Phone,
-		Address:         user.Address,
-		AvatarURL:       user.AvatarURL,
-		Role:            user.Role,
-		Status:          user.Status,
-		EmailVerifiedAt: user.EmailVerifiedAt,
-		CreatedAt:       user.CreatedAt,
-		UpdatedAt:       user.UpdatedAt,
-	})
+	c.JSON(http.StatusOK, dto.ToUserResponse(user))
 }

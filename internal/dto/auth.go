@@ -4,8 +4,10 @@ import "time"
 
 // RegisterRequest represents the request body for user registration
 type RegisterRequest struct {
-	Email    string `json:"email" binding:"required,email,max=255"`
-	Password string `json:"password" binding:"required,min=8,max=72"`
+	Email string `json:"email" binding:"required,email,max=255"`
+	// Password must be 8-72 characters. Max 72 is bcrypt's limit.
+	// Must contain at least one uppercase, one lowercase, one digit, and one special character.
+	Password string `json:"password" binding:"required,min=8,max=72,password_strength"`
 	FullName string `json:"full_name" binding:"required,min=2,max=255"`
 }
 

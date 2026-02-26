@@ -5,6 +5,8 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 	"github.com/kha/foods-drinks/internal/config"
 	"github.com/kha/foods-drinks/internal/handler"
 	"github.com/kha/foods-drinks/internal/middleware"
@@ -12,6 +14,7 @@ import (
 	"github.com/kha/foods-drinks/internal/routes"
 	"github.com/kha/foods-drinks/internal/service"
 	"github.com/kha/foods-drinks/pkg/database"
+	customValidator "github.com/kha/foods-drinks/pkg/validator"
 )
 
 func main() {
@@ -19,6 +22,13 @@ func main() {
 	cfg, err := config.LoadConfig("config.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Register custom validators
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		if err := customValidator.RegisterCustomValidators(v); err != nil {
+			log.Fatalf("Failed to register custom validators: %v", err)
+		}
 	}
 
 	// Set Gin mode based on environment

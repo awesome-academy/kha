@@ -15,6 +15,16 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
+// GetDB returns the underlying database connection for transaction support
+func (r *UserRepository) GetDB() *gorm.DB {
+	return r.db
+}
+
+// WithTx returns a new UserRepository that uses the given transaction
+func (r *UserRepository) WithTx(tx *gorm.DB) *UserRepository {
+	return &UserRepository{db: tx}
+}
+
 // Create creates a new user
 func (r *UserRepository) Create(user *models.User) error {
 	return r.db.Create(user).Error
@@ -79,11 +89,23 @@ func (r *UserRepository) List(offset, limit int) ([]models.User, int64, error) {
 }
 
 // FindByIDWithRelations finds a user by ID with specified relations
+// Only allows whitelisted relations to prevent performance issues and unexpected behavior
 func (r *UserRepository) FindByIDWithRelations(id uint, relations ...string) (*models.User, error) {
+	// Whitelist of allowed relations for User model
+	allowedRelations := map[string]bool{
+		"SocialAuths": true,
+		"Cart":        true,
+		"Orders":      true,
+		"Ratings":     true,
+	}
+
 	var user models.User
 	query := r.db
 	for _, rel := range relations {
-		query = query.Preload(rel)
+		// Only preload if relation is in whitelist
+		if allowedRelations[rel] {
+			query = query.Preload(rel)
+		}
 	}
 	if err := query.First(&user, id).Error; err != nil {
 		return nil, err

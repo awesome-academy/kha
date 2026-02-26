@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -83,7 +84,7 @@ func (s *AuthService) Register(req *dto.RegisterRequest) (*dto.AuthResponse, err
 		AccessToken: token,
 		TokenType:   "Bearer",
 		ExpiresIn:   expiresIn,
-		User:        s.toUserResponse(user),
+		User:        dto.ToUserResponse(user),
 	}, nil
 }
 
@@ -126,7 +127,7 @@ func (s *AuthService) Login(req *dto.LoginRequest) (*dto.AuthResponse, error) {
 		AccessToken: token,
 		TokenType:   "Bearer",
 		ExpiresIn:   expiresIn,
-		User:        s.toUserResponse(user),
+		User:        dto.ToUserResponse(user),
 	}, nil
 }
 
@@ -159,7 +160,7 @@ func (s *AuthService) GenerateToken(user *models.User) (string, int64, error) {
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
-			Subject:   string(rune(user.ID)),
+			Subject:   strconv.FormatUint(uint64(user.ID), 10),
 		},
 	}
 
@@ -228,21 +229,4 @@ func (s *AuthService) UpdateProfile(userID uint, req *dto.UpdateProfileRequest) 
 	}
 
 	return user, nil
-}
-
-// toUserResponse converts a User model to UserResponse DTO
-func (s *AuthService) toUserResponse(user *models.User) dto.UserResponse {
-	return dto.UserResponse{
-		ID:              user.ID,
-		Email:           user.Email,
-		FullName:        user.FullName,
-		Phone:           user.Phone,
-		Address:         user.Address,
-		AvatarURL:       user.AvatarURL,
-		Role:            user.Role,
-		Status:          user.Status,
-		EmailVerifiedAt: user.EmailVerifiedAt,
-		CreatedAt:       user.CreatedAt,
-		UpdatedAt:       user.UpdatedAt,
-	}
 }

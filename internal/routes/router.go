@@ -36,10 +36,13 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 			auth.POST("/register", deps.AuthHandler.Register)
 			auth.POST("/login", deps.AuthHandler.Login)
 
-			// OAuth routes
-			auth.GET("/oauth/providers", deps.OAuthHandler.GetProviders)
-			auth.GET("/:provider", deps.OAuthHandler.InitiateOAuth)
-			auth.GET("/:provider/callback", deps.OAuthHandler.HandleCallback)
+			// OAuth routes - use specific prefix to avoid routing conflicts
+			oauth := auth.Group("/oauth")
+			{
+				oauth.GET("/providers", deps.OAuthHandler.GetProviders)
+				oauth.GET("/:provider", deps.OAuthHandler.InitiateOAuth)
+				oauth.GET("/:provider/callback", deps.OAuthHandler.HandleCallback)
+			}
 		}
 
 		// Public routes

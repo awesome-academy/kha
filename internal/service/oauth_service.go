@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/kha/foods-drinks/internal/config"
@@ -24,14 +26,16 @@ var (
 	ErrOAuthCodeExchange          = errors.New("failed to exchange oauth code")
 	ErrOAuthUserInfo              = errors.New("failed to get user info from provider")
 	ErrOAuthProviderNotConfigured = errors.New("oauth provider not configured")
+	ErrOAuthEmailRequired         = errors.New("email is required from oauth provider")
 )
 
 // OAuthUserInfo represents user info from OAuth provider
 type OAuthUserInfo struct {
-	ID        string
-	Email     string
-	Name      string
-	AvatarURL string
+	ID            string
+	Email         string
+	Name          string
+	AvatarURL     string
+	EmailVerified bool // Whether the email is verified by the provider
 }
 
 // OAuthProvider interface for OAuth providers
@@ -135,7 +139,7 @@ func (s *OAuthService) HandleCallback(ctx context.Context, provider, code string
 		AccessToken: jwtToken,
 		TokenType:   "Bearer",
 		ExpiresIn:   expiresIn,
-		User:        s.toUserResponse(user),
+		User:        dto.ToUserResponse(user),
 	}, nil
 }
 
@@ -150,7 +154,9 @@ func (s *OAuthService) findOrCreateUser(userInfo *OAuthUserInfo, provider string
 		if token.RefreshToken != "" {
 			refreshToken = &token.RefreshToken
 		}
-		_ = s.socialAuthRepo.UpdateTokens(socialAuth.ID, &accessToken, refreshToken)
+		if updateErr := s.socialAuthRepo.UpdateTokens(socialAuth.ID, &accessToken, refreshToken); updateErr != nil {
+			log.Printf("Failed to update OAuth tokens for social auth ID %d: %v", socialAuth.ID, updateErr)
+		}
 
 		user, err := s.userRepo.FindByID(socialAuth.UserID)
 		if err != nil {
@@ -172,38 +178,59 @@ func (s *OAuthService) findOrCreateUser(userInfo *OAuthUserInfo, provider string
 		}
 	}
 
-	// Create new user if not exists
-	if user == nil {
-		now := time.Now()
-		user = &models.User{
-			Email:           userInfo.Email,
-			FullName:        userInfo.Name,
-			AvatarURL:       &userInfo.AvatarURL,
-			Role:            models.RoleUser,
-			Status:          models.UserStatusActive,
-			EmailVerifiedAt: &now, // OAuth users have verified email
-		}
-		if err := s.userRepo.Create(user); err != nil {
-			return nil, err
-		}
-	}
+	// Use transaction to ensure atomicity when creating user and social auth
+	db := s.userRepo.GetDB()
+	txErr := db.Transaction(func(tx *gorm.DB) error {
+		userRepoTx := s.userRepo.WithTx(tx)
+		socialAuthRepoTx := s.socialAuthRepo.WithTx(tx)
 
-	// Create social auth record
-	accessToken := token.AccessToken
-	var refreshToken *string
-	if token.RefreshToken != "" {
-		refreshToken = &token.RefreshToken
-	}
+		// Create new user if not exists
+		if user == nil {
+			// Validate that email is not empty before creating user
+			if userInfo.Email == "" {
+				return ErrOAuthEmailRequired
+			}
 
-	socialAuth = &models.SocialAuth{
-		UserID:         user.ID,
-		Provider:       provider,
-		ProviderUserID: userInfo.ID,
-		AccessToken:    &accessToken,
-		RefreshToken:   refreshToken,
-	}
-	if err := s.socialAuthRepo.Create(socialAuth); err != nil {
-		return nil, err
+			user = &models.User{
+				Email:     userInfo.Email,
+				FullName:  userInfo.Name,
+				AvatarURL: &userInfo.AvatarURL,
+				Role:      models.RoleUser,
+				Status:    models.UserStatusActive,
+			}
+			// Only set EmailVerifiedAt if provider confirmed the email is verified
+			if userInfo.EmailVerified {
+				now := time.Now()
+				user.EmailVerifiedAt = &now
+			}
+			if err := userRepoTx.Create(user); err != nil {
+				return err
+			}
+		}
+
+		// Create social auth record
+		accessToken := token.AccessToken
+		var refreshToken *string
+		if token.RefreshToken != "" {
+			refreshToken = &token.RefreshToken
+		}
+
+		socialAuth = &models.SocialAuth{
+			UserID:         user.ID,
+			Provider:       provider,
+			ProviderUserID: userInfo.ID,
+			AccessToken:    &accessToken,
+			RefreshToken:   refreshToken,
+		}
+		if err := socialAuthRepoTx.Create(socialAuth); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if txErr != nil {
+		return nil, txErr
 	}
 
 	return user, nil
@@ -224,22 +251,6 @@ func (s *OAuthService) IsProviderSupported(provider string) bool {
 	return ok
 }
 
-func (s *OAuthService) toUserResponse(user *models.User) dto.UserResponse {
-	return dto.UserResponse{
-		ID:              user.ID,
-		Email:           user.Email,
-		FullName:        user.FullName,
-		Phone:           user.Phone,
-		Address:         user.Address,
-		AvatarURL:       user.AvatarURL,
-		Role:            user.Role,
-		Status:          user.Status,
-		EmailVerifiedAt: user.EmailVerifiedAt,
-		CreatedAt:       user.CreatedAt,
-		UpdatedAt:       user.UpdatedAt,
-	}
-}
-
 // ========================================
 // Google OAuth Provider Implementation
 // ========================================
@@ -257,6 +268,7 @@ func NewGoogleProvider(cfg *config.OAuthProviderConfig) *GoogleProvider {
 			ClientSecret: cfg.ClientSecret,
 			RedirectURL:  cfg.RedirectURL,
 			Scopes: []string{
+				"openid", // Required for OpenID Connect compliance
 				"https://www.googleapis.com/auth/userinfo.email",
 				"https://www.googleapis.com/auth/userinfo.profile",
 			},
@@ -308,10 +320,11 @@ func (p *GoogleProvider) GetUserInfo(ctx context.Context, token *oauth2.Token) (
 	}
 
 	return &OAuthUserInfo{
-		ID:        googleUser.ID,
-		Email:     googleUser.Email,
-		Name:      googleUser.Name,
-		AvatarURL: googleUser.Picture,
+		ID:            googleUser.ID,
+		Email:         strings.ToLower(strings.TrimSpace(googleUser.Email)), // Normalize email
+		Name:          googleUser.Name,
+		AvatarURL:     googleUser.Picture,
+		EmailVerified: googleUser.VerifiedEmail,
 	}, nil
 }
 

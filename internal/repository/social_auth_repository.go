@@ -15,12 +15,17 @@ func NewSocialAuthRepository(db *gorm.DB) *SocialAuthRepository {
 	return &SocialAuthRepository{db: db}
 }
 
+// WithTx returns a new SocialAuthRepository that uses the given transaction
+func (r *SocialAuthRepository) WithTx(tx *gorm.DB) *SocialAuthRepository {
+	return &SocialAuthRepository{db: tx}
+}
+
 // Create creates a new social auth record
 func (r *SocialAuthRepository) Create(socialAuth *models.SocialAuth) error {
 	return r.db.Create(socialAuth).Error
 }
 
-// FindByProviderAndUserID finds a social auth by provider and provider user ID
+// FindByProviderAndProviderUserID FindByProviderAndUserID finds a social auth by provider and provider user ID
 func (r *SocialAuthRepository) FindByProviderAndProviderUserID(provider, providerUserID string) (*models.SocialAuth, error) {
 	var socialAuth models.SocialAuth
 	if err := r.db.Where("provider = ? AND provider_user_id = ?", provider, providerUserID).First(&socialAuth).Error; err != nil {

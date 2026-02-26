@@ -71,7 +71,9 @@ func (h *OAuthHandler) InitiateOAuth(c *gin.Context) {
 	}
 
 	// Store state in cookie for verification
-	c.SetCookie("oauth_state", state, 600, "/", "", false, true)
+	// Secure flag is determined based on the request (HTTPS or behind reverse proxy)
+	secure := isSecureRequest(c)
+	c.SetCookie("oauth_state", state, 600, "/", "", secure, true)
 
 	// Get authorization URL
 	authURL, err := h.oauthService.GetAuthURL(provider, state)
@@ -137,7 +139,8 @@ func (h *OAuthHandler) HandleCallback(c *gin.Context) {
 	}
 
 	// Clear state cookie
-	c.SetCookie("oauth_state", "", -1, "/", "", false, true)
+	secure := isSecureRequest(c)
+	c.SetCookie("oauth_state", "", -1, "/", "", secure, true)
 
 	// Handle callback
 	resp, err := h.oauthService.HandleCallback(c.Request.Context(), provider, req.Code)
@@ -150,8 +153,9 @@ func (h *OAuthHandler) HandleCallback(c *gin.Context) {
 }
 
 // HandleCallbackRedirect handles OAuth callback and redirects to frontend
-// This is useful when you want to redirect to a frontend URL with the token
-func (h *OAuthHandler) HandleCallbackRedirect(c *gin.Context, frontendURL string) {
+// Uses HTTP-only secure cookie for token to prevent XSS attacks
+// The token is NOT passed in URL to avoid exposure in browser history, logs, and referrer headers
+func (h *OAuthHandler) HandleCallbackRedirect(c *gin.Context, frontendURL string, secureCookie bool) {
 	provider := c.Param("provider")
 
 	// Validate provider
@@ -175,17 +179,33 @@ func (h *OAuthHandler) HandleCallbackRedirect(c *gin.Context, frontendURL string
 	}
 
 	// Clear state cookie
-	c.SetCookie("oauth_state", "", -1, "/", "", false, true)
+	c.SetCookie("oauth_state", "", -1, "/", "", secureCookie, true)
 
 	// Handle callback
 	resp, err := h.oauthService.HandleCallback(c.Request.Context(), provider, req.Code)
 	if err != nil {
-		c.Redirect(http.StatusTemporaryRedirect, frontendURL+"?error=auth_failed")
+		errCode := "auth_failed"
+		if errors.Is(err, service.ErrUserInactive) {
+			errCode = "user_inactive"
+		} else if errors.Is(err, service.ErrUserBanned) {
+			errCode = "user_banned"
+		} else if errors.Is(err, service.ErrOAuthEmailRequired) {
+			errCode = "email_required"
+		}
+		c.Redirect(http.StatusTemporaryRedirect, frontendURL+"?error="+errCode)
 		return
 	}
 
-	// Redirect with token
-	c.Redirect(http.StatusTemporaryRedirect, frontendURL+"?token="+resp.AccessToken)
+	// Set token in HTTP-only secure cookie instead of URL parameter
+	// This prevents token exposure in:
+	// - Browser history
+	// - Server logs
+	// - Referrer headers
+	// Cookie expires in 24 hours (86400 seconds)
+	c.SetCookie("access_token", resp.AccessToken, 86400, "/", "", secureCookie, true)
+
+	// Redirect to frontend success page
+	c.Redirect(http.StatusTemporaryRedirect, frontendURL+"?auth=success")
 }
 
 // handleOAuthError handles OAuth errors and returns appropriate response
@@ -210,6 +230,11 @@ func (h *OAuthHandler) handleOAuthError(c *gin.Context, err error) {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Error:   "user_info_failed",
 			Message: "Failed to get user information from provider",
+		})
+	case errors.Is(err, service.ErrOAuthEmailRequired):
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error:   "email_required",
+			Message: "OAuth provider did not provide email address",
 		})
 	case errors.Is(err, service.ErrUserInactive):
 		c.JSON(http.StatusForbidden, dto.ErrorResponse{
@@ -237,4 +262,10 @@ func generateRandomState() (string, error) {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+// isSecureRequest determines if the request is over HTTPS
+// Checks both direct TLS and reverse proxy headers
+func isSecureRequest(c *gin.Context) bool {
+	return c.Request.TLS != nil || c.Request.Header.Get("X-Forwarded-Proto") == "https"
 }
