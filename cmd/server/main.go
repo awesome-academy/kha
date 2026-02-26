@@ -50,26 +50,30 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
 	socialAuthRepo := repository.NewSocialAuthRepository(db)
+	categoryRepo := repository.NewCategoryRepository(db)
 
 	// Initialize services
 	authService := service.NewAuthService(userRepo, &cfg.JWT)
 	oauthService := service.NewOAuthService(userRepo, socialAuthRepo, authService, &cfg.OAuth)
+	categoryService := service.NewCategoryService(categoryRepo)
 
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler()
 	authHandler := handler.NewAuthHandler(authService)
 	oauthHandler := handler.NewOAuthHandler(oauthService)
+	categoryHandler := handler.NewCategoryHandler(categoryService)
 
 	// Initialize middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
 
 	// Setup router with dependencies
 	deps := &routes.RouterDependencies{
-		HealthHandler:  healthHandler,
-		AuthHandler:    authHandler,
-		OAuthHandler:   oauthHandler,
-		CorsMiddleware: middleware.CORSConfig(),
-		AuthMiddleware: authMiddleware,
+		HealthHandler:   healthHandler,
+		AuthHandler:     authHandler,
+		OAuthHandler:    oauthHandler,
+		CategoryHandler: categoryHandler,
+		CorsMiddleware:  middleware.CORSConfig(),
+		AuthMiddleware:  authMiddleware,
 	}
 	router := routes.SetupRouter(deps)
 
