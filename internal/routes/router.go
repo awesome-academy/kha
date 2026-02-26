@@ -8,11 +8,12 @@ import (
 
 // RouterDependencies holds all dependencies for router setup
 type RouterDependencies struct {
-	HealthHandler  *handler.HealthHandler
-	AuthHandler    *handler.AuthHandler
-	OAuthHandler   *handler.OAuthHandler
-	CorsMiddleware gin.HandlerFunc
-	AuthMiddleware *middleware.AuthMiddleware
+	HealthHandler   *handler.HealthHandler
+	AuthHandler     *handler.AuthHandler
+	OAuthHandler    *handler.OAuthHandler
+	CategoryHandler *handler.CategoryHandler
+	CorsMiddleware  gin.HandlerFunc
+	AuthMiddleware  *middleware.AuthMiddleware
 }
 
 func SetupRouter(deps *RouterDependencies) *gin.Engine {
@@ -65,7 +66,15 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 		admin.Use(deps.AuthMiddleware.RequireAuth())
 		admin.Use(deps.AuthMiddleware.RequireAdmin())
 		{
-			_ = admin // TODO: Add admin routes
+			// Category management
+			categories := admin.Group("/categories")
+			{
+				categories.POST("", deps.CategoryHandler.Create)
+				categories.GET("", deps.CategoryHandler.List)
+				categories.GET("/:id", deps.CategoryHandler.GetByID)
+				categories.PUT("/:id", deps.CategoryHandler.Update)
+				categories.DELETE("/:id", deps.CategoryHandler.Delete)
+			}
 		}
 	}
 
