@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -47,6 +48,11 @@ func main() {
 
 	log.Println("Database connected successfully!")
 
+	// Ensure upload directory exists
+	if err := os.MkdirAll(cfg.Upload.Path, 0755); err != nil {
+		log.Fatalf("Failed to create upload directory: %v", err)
+	}
+
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
 	socialAuthRepo := repository.NewSocialAuthRepository(db)
@@ -54,11 +60,13 @@ func main() {
 	// Initialize services
 	authService := service.NewAuthService(userRepo, &cfg.JWT)
 	oauthService := service.NewOAuthService(userRepo, socialAuthRepo, authService, &cfg.OAuth)
+	profileService := service.NewProfileService(userRepo, &cfg.Upload)
 
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler()
 	authHandler := handler.NewAuthHandler(authService)
 	oauthHandler := handler.NewOAuthHandler(oauthService)
+	profileHandler := handler.NewProfileHandler(profileService)
 
 	// Initialize middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
@@ -68,8 +76,10 @@ func main() {
 		HealthHandler:  healthHandler,
 		AuthHandler:    authHandler,
 		OAuthHandler:   oauthHandler,
+		ProfileHandler: profileHandler,
 		CorsMiddleware: middleware.CORSConfig(),
 		AuthMiddleware: authMiddleware,
+		UploadPath:     cfg.Upload.Path,
 	}
 	router := routes.SetupRouter(deps)
 
