@@ -263,6 +263,11 @@ func (h *CategoryHandler) handleServiceError(c *gin.Context, err error) {
 			Error:   "slug_exists",
 			Message: "A category with this slug already exists",
 		})
+	case errors.Is(err, service.ErrEmptySlug):
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error:   "invalid_slug",
+			Message: "Slug cannot be empty after generation; use alphanumeric characters",
+		})
 	default:
 		log.Printf("Category service error: %v", err)
 		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{

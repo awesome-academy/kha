@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"log"
 	"os"
 
@@ -19,25 +20,21 @@ import (
 )
 
 func main() {
-	// Load config
 	cfg, err := config.LoadConfig("config.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Register custom validators
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		if err := customValidator.RegisterCustomValidators(v); err != nil {
 			log.Fatalf("Failed to register custom validators: %v", err)
 		}
 	}
 
-	// Set Gin mode based on environment
 	if cfg.App.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// Connect to database
 	db, err := database.NewConnection(&cfg.Database)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -60,36 +57,44 @@ func main() {
 	socialAuthRepo := repository.NewSocialAuthRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
 
-	// Initialize services
 	authService := service.NewAuthService(userRepo, &cfg.JWT)
 	oauthService := service.NewOAuthService(userRepo, socialAuthRepo, authService, &cfg.OAuth)
 	profileService := service.NewProfileService(userRepo, &cfg.Upload, routes.UploadURLPrefix)
 	categoryService := service.NewCategoryService(categoryRepo)
 
-	// Initialize handlers
+	funcMap := template.FuncMap{
+		"inc": func(i int) int { return i + 1 },
+		"dec": func(i int) int { return i - 1 },
+		"deref": func(s *string) string {
+			if s == nil {
+				return ""
+			}
+			return *s
+		},
+	}
+
 	healthHandler := handler.NewHealthHandler()
 	authHandler := handler.NewAuthHandler(authService)
 	oauthHandler := handler.NewOAuthHandler(oauthService)
 	profileHandler := handler.NewProfileHandler(profileService)
 	categoryHandler := handler.NewCategoryHandler(categoryService)
+	adminCategoryHandler := handler.NewAdminCategoryHandler(categoryService, funcMap)
 
-	// Initialize middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
 
-	// Setup router with dependencies
 	deps := &routes.RouterDependencies{
 		HealthHandler:   healthHandler,
 		AuthHandler:     authHandler,
 		OAuthHandler:    oauthHandler,
 		ProfileHandler:  profileHandler,
 		CategoryHandler: categoryHandler,
+		AdminCategoryHandler: adminCategoryHandler,
 		CorsMiddleware:  middleware.CORSConfig(),
 		AuthMiddleware:  authMiddleware,
 		UploadPath:      cfg.Upload.Path,
 	}
 	router := routes.SetupRouter(deps)
 
-	// Start server
 	addr := fmt.Sprintf(":%d", cfg.App.Port)
 	log.Printf("Server %s starting on %s", cfg.App.Name, addr)
 

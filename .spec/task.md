@@ -5,6 +5,13 @@ Mỗi task tối đa 8 giờ cho fresher Golang.
 **Priority**: P0 → P1 → P2 → P3  
 **Status**: TODO → IN_PROGRESS → REVIEW → DONE
 
+## Kiến trúc tổng quan
+
+| Site | Approach | Ghi chú |
+|------|----------|---------|
+| **User Site** | REST API (JSON) | Frontend tách biệt gọi API |
+| **Admin Site** | SSR — Go render HTML | Go dùng `html/template` render trang trực tiếp, không có API JSON riêng cho admin |
+
 ---
 
 ## Phase 1: Setup & Foundation (P0)
@@ -37,15 +44,22 @@ Mỗi task tối đa 8 giờ cho fresher Golang.
 
 **Mô tả**: Setup HTTP server và middleware cơ bản.
 
+> **Lưu ý kiến trúc**:
+> - Route `/api/v1/...` → REST API JSON cho **User Site**
+> - Route `/admin/...` → SSR handler, Go render HTML template cho **Admin Site**
+
 **Subtasks**:
 1. Setup HTTP framework (Gin/Echo)
 2. Middleware: CORS, Logger, Recovery
-3. Routing structure (v1, admin, public)
-4. Health check endpoint
+3. Routing structure: `/api/v1` (User API), `/admin` (SSR), `/public`
+4. Setup template engine cho Admin SSR (`html/template` hoặc tương đương)
+5. Health check endpoint
 
 **Acceptance**:
 - Server chạy được, port configurable
 - CORS, Logger, Recovery middleware hoạt động
+- Route `/api/v1` trả về JSON
+- Route `/admin` render HTML template
 - Health check endpoint OK
 
 **Dependencies**: Task 1.1
@@ -141,46 +155,50 @@ Mỗi task tối đa 8 giờ cho fresher Golang.
 
 ## Phase 4: Categories Management (P0 - Admin)
 
-### Task 4.1: Categories CRUD APIs (Admin)
+### Task 4.1: Categories CRUD — Admin SSR
 **Thời gian**: 6-8 giờ  
 **Priority**: P0
 
-**Mô tả**: Admin CRUD categories.
+**Mô tả**: Admin CRUD categories theo kiểu SSR — Go render HTML, không trả JSON.
 
 **Subtasks**:
 1. Model Category, repository layer
-2. CRUD APIs
-3. Slug auto-generate
-4. Pagination, filter by status
-5. Soft delete
+2. SSR handlers: List, Create, Edit, Delete (POST form submit, redirect after action)
+3. HTML templates cho từng trang (list, form)
+4. Slug auto-generate
+5. Pagination, filter by status
+6. Soft delete
 
 **Acceptance**:
-- CRUD categories hoạt động
-- Pagination và filter
+- CRUD categories hoạt động qua HTML form (SSR)
+- Pagination và filter render trực tiếp trên trang
 - Slug auto-generate và unique
+- Redirect sau khi create/update/delete
 
 **Dependencies**: Task 2.2
 
 ## Phase 5: Products Management (P0)
 
-### Task 5.1: Products CRUD APIs (Admin)
+### Task 5.1: Products CRUD — Admin SSR
 **Thời gian**: 6-8 giờ  
 **Priority**: P0
 
-**Mô tả**: Admin CRUD products.
+**Mô tả**: Admin CRUD products theo kiểu SSR — Go render HTML, không trả JSON.
 
 **Subtasks**:
 1. Models: Product, ProductImage
 2. Repository layer
-3. CRUD APIs với multiple images
-4. Slug generation
-5. Image upload và management
-6. Soft delete
+3. SSR handlers: List, Create, Edit, Delete (POST form submit, redirect after action)
+4. HTML templates cho từng trang (list, form với multiple image upload)
+5. Slug generation
+6. Image upload và management
+7. Soft delete
 
 **Acceptance**:
-- CRUD products với multiple images
-- Upload và quản lý images
+- CRUD products hoạt động qua HTML form (SSR)
+- Upload và quản lý multiple images trên trang admin
 - Primary image được set đúng
+- Redirect sau khi create/update/delete
 
 **Dependencies**: Task 4.1, Task 2.2
 
@@ -296,22 +314,24 @@ Mỗi task tối đa 8 giờ cho fresher Golang.
 
 **Dependencies**: Task 7.1
 
-### Task 7.3: Order Management APIs (Admin)
+### Task 7.3: Order Management — Admin SSR
 **Thời gian**: 4-6 giờ  
 **Priority**: P0
 
-**Mô tả**: Admin order management APIs.
+**Mô tả**: Admin quản lý orders theo kiểu SSR — Go render HTML, không trả JSON.
 
 **Subtasks**:
-1. Admin APIs: List all orders, order detail
-2. Update order status
-3. Filter, sort, pagination
-4. Validate status transition
+1. SSR handlers: List all orders, order detail
+2. Update order status qua POST form, redirect after action
+3. HTML templates: danh sách orders, trang detail
+4. Filter, sort, pagination render trên trang
+5. Validate status transition
 
 **Acceptance**:
-- Admin list all orders
-- Update order status
-- Filter, sort, pagination
+- Admin list all orders (SSR)
+- Update order status qua form submit
+- Filter, sort, pagination hoạt động trên trang HTML
+- Redirect sau khi update status
 
 **Dependencies**: Task 7.1, Task 2.2
 
@@ -341,22 +361,23 @@ Mỗi task tối đa 8 giờ cho fresher Golang.
 
 ## Phase 9: Suggestions System (P2)
 
-### Task 9.1: Product Suggestions APIs
+### Task 9.1: Product Suggestions
 **Thời gian**: 4-6 giờ  
 **Priority**: P2
 
-**Mô tả**: Product suggestions APIs.
+**Mô tả**: Suggestions — User dùng API, Admin dùng SSR.
 
 **Subtasks**:
 1. Model Suggestion, repository layer
-2. User API: Create suggestion
-3. Admin APIs: List, Approve/Reject
-4. Filter, pagination
+2. **User**: REST API tạo suggestion (JSON)
+3. **Admin SSR**: trang List suggestions, Approve/Reject qua POST form
+4. HTML templates cho admin
+5. Filter, pagination
 
 **Acceptance**:
-- User tạo suggestion
-- Admin list và approve/reject
-- Filter, pagination
+- User tạo suggestion qua API (JSON)
+- Admin list và approve/reject qua SSR (HTML form)
+- Filter, pagination hoạt động
 
 **Dependencies**: Task 2.2, Task 4.1
 
@@ -406,22 +427,24 @@ Mỗi task tối đa 8 giờ cho fresher Golang.
 
 ## Phase 11: Statistics & Reports (P1)
 
-### Task 11.1: Order Statistics API (Admin)
+### Task 11.1: Order Statistics — Admin SSR
 **Thời gian**: 6-8 giờ  
 **Priority**: P1
 
-**Mô tả**: Order statistics API cho admin.
+**Mô tả**: Trang thống kê orders cho admin theo kiểu SSR — Go render HTML với dữ liệu chart nhúng sẵn.
 
 **Subtasks**:
-1. Statistics API: orders, revenue, avg order value
-2. Filter date range, status
-3. Group by month/week/day
-4. Format cho chart
-5. Optimize query
+1. SSR handler: trang statistics render HTML
+2. Query: orders, revenue, avg order value
+3. Filter date range, status (form GET)
+4. Group by month/week/day
+5. Truyền data vào template để render chart (dùng JS chart library như Chart.js nhúng inline)
+6. Optimize query
 
 **Acceptance**:
-- Statistics API: orders, revenue, avg order value
-- Filter date range
+- Trang statistics render HTML (SSR)
+- Filter date range hoạt động qua form GET
+- Chart data được nhúng vào trang
 - Format phù hợp cho chart
 
 **Dependencies**: Task 7.1
@@ -449,23 +472,25 @@ Mỗi task tối đa 8 giờ cho fresher Golang.
 
 ## Phase 12: User Management (Admin) (P1)
 
-### Task 12.1: User Management APIs (Admin)
+### Task 12.1: User Management — Admin SSR
 **Thời gian**: 6-8 giờ  
 **Priority**: P1
 
-**Mô tả**: Admin user management APIs.
+**Mô tả**: Admin quản lý users theo kiểu SSR — Go render HTML, không trả JSON.
 
 **Subtasks**:
-1. Admin APIs: List users, user detail
-2. Update user status và role
-3. Filter, sort, pagination
-4. Validation: không ban admin, không tự ban mình
+1. SSR handlers: List users, user detail
+2. Update user status và role qua POST form, redirect after action
+3. HTML templates: danh sách users, trang detail/edit
+4. Filter, sort, pagination render trên trang
+5. Validation: không ban admin, không tự ban mình
 
 **Acceptance**:
-- Admin list users
-- Update user status và role
-- Filter, sort, pagination
+- Admin list users (SSR)
+- Update user status và role qua form submit
+- Filter, sort, pagination hoạt động trên trang HTML
 - Validation: không ban admin, không tự ban mình
+- Redirect sau khi update
 
 **Dependencies**: Task 2.2
 

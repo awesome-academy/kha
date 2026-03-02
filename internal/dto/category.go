@@ -17,7 +17,7 @@ type UpdateCategoryRequest struct {
 	Name        *string `json:"name" binding:"omitempty,min=2,max=255"`
 	Slug        *string `json:"slug" binding:"omitempty,min=2,max=255"`
 	Description *string `json:"description" binding:"omitempty,max=2000"`
-	ImageURL    *string `json:"image_url" binding:"omitempty,max=500"`
+	ImageURL    *string `json:"image_url" binding:"omitempty,url,max=500"`
 	SortOrder   *int    `json:"sort_order" binding:"omitempty,min=0"`
 	Status      *string `json:"status" binding:"omitempty,oneof=active inactive"`
 }

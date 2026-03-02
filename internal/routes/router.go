@@ -22,6 +22,7 @@ type RouterDependencies struct {
 	OAuthHandler   *handler.OAuthHandler
 	ProfileHandler *handler.ProfileHandler
 	CategoryHandler *handler.CategoryHandler
+	AdminCategoryHandler *handler.AdminCategoryHandler
 	CorsMiddleware gin.HandlerFunc
 	AuthMiddleware *middleware.AuthMiddleware
 	UploadPath     string
@@ -88,13 +89,12 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 			protected.DELETE("/profile/avatar", deps.ProfileHandler.DeleteAvatar)
 		}
 
-		// Admin routes (require admin role)
-		admin := v1.Group("/admin")
-		admin.Use(deps.AuthMiddleware.RequireAuth())
-		admin.Use(deps.AuthMiddleware.RequireAdmin())
+		// Admin API routes (require admin role) — JSON API
+		adminAPI := v1.Group("/admin")
+		adminAPI.Use(deps.AuthMiddleware.RequireAuth())
+		adminAPI.Use(deps.AuthMiddleware.RequireAdmin())
 		{
-			// Category management
-			categories := admin.Group("/categories")
+			categories := adminAPI.Group("/categories")
 			{
 				categories.POST("", deps.CategoryHandler.Create)
 				categories.GET("", deps.CategoryHandler.List)
@@ -102,6 +102,20 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 				categories.PUT("/:id", deps.CategoryHandler.Update)
 				categories.DELETE("/:id", deps.CategoryHandler.Delete)
 			}
+		}
+	}
+
+	// Admin SSR routes — HTML pages
+	adminSSR := router.Group("/admin")
+	{
+		categories := adminSSR.Group("/categories")
+		{
+			categories.GET("", deps.AdminCategoryHandler.List)
+			categories.GET("/new", deps.AdminCategoryHandler.New)
+			categories.POST("", deps.AdminCategoryHandler.Create)
+			categories.GET("/:id/edit", deps.AdminCategoryHandler.Edit)
+			categories.POST("/:id/update", deps.AdminCategoryHandler.Update)
+			categories.POST("/:id/delete", deps.AdminCategoryHandler.Delete)
 		}
 	}
 

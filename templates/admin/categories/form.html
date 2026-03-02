@@ -1,0 +1,84 @@
+{{ template "layout" . }}
+
+{{ define "page_content" }}
+<div style="max-width:640px">
+  <div style="margin-bottom:20px">
+    <a href="/admin/categories" class="btn btn-outline btn-sm">&larr; Quay lại</a>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">
+        {{ if .Category }}Sửa danh mục{{ else }}Thêm danh mục mới{{ end }}
+      </h2>
+    </div>
+
+    {{ if .Errors }}
+    <div class="alert alert-error">
+      {{ range .Errors }}<div>{{ . }}</div>{{ end }}
+    </div>
+    {{ end }}
+
+    {{ if .Category }}
+    <form method="POST" action="/admin/categories/{{ .Category.ID }}/update">
+    {{ else }}
+    <form method="POST" action="/admin/categories">
+    {{ end }}
+
+      <div class="form-group">
+        <label class="form-label">Tên danh mục <span style="color:#e94560">*</span></label>
+        <input type="text" name="name" class="form-control"
+               value="{{ if .Category }}{{ .Category.Name }}{{ else }}{{ .Form.Name }}{{ end }}"
+               placeholder="VD: Đồ uống, Món ăn..." required />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Slug</label>
+        <input type="text" name="slug" class="form-control"
+               value="{{ if .Category }}{{ .Category.Slug }}{{ else }}{{ .Form.Slug }}{{ end }}"
+               placeholder="Tự động tạo từ tên nếu để trống" />
+        <div class="form-hint">Chỉ dùng chữ thường, số và dấu gạch ngang. Để trống sẽ tự tạo.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Mô tả</label>
+        <textarea name="description" class="form-control"
+                  placeholder="Mô tả ngắn về danh mục...">{{ if .Category }}{{ deref .Category.Description }}{{ else }}{{ .Form.Description }}{{ end }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">URL ảnh</label>
+        <input type="url" name="image_url" class="form-control"
+               value="{{ if .Category }}{{ deref .Category.ImageURL }}{{ else }}{{ .Form.ImageURL }}{{ end }}"
+               placeholder="https://..." />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Thứ tự hiển thị</label>
+          <input type="number" name="sort_order" class="form-control" min="0"
+                 value="{{ if .Category }}{{ .Category.SortOrder }}{{ else }}{{ .Form.SortOrder }}{{ end }}" />
+          <div class="form-hint">Số nhỏ hơn hiển thị trước.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Trạng thái</label>
+          <select name="status" class="form-control">
+            {{ $status := "" }}
+            {{ if .Category }}{{ $status = .Category.Status }}{{ else }}{{ $status = .Form.Status }}{{ end }}
+            <option value="active"   {{ if eq $status "active"   }}selected{{ end }}>Hoạt động</option>
+            <option value="inactive" {{ if eq $status "inactive" }}selected{{ end }}>Ẩn</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button type="submit" class="btn btn-primary">
+          {{ if .Category }}Lưu thay đổi{{ else }}Tạo danh mục{{ end }}
+        </button>
+        <a href="/admin/categories" class="btn btn-outline">Huỷ</a>
+      </div>
+    </form>
+  </div>
+</div>
+{{ end }}

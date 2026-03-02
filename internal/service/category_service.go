@@ -16,6 +16,20 @@ import (
 var (
 	ErrCategoryNotFound  = errors.New("category not found")
 	ErrSlugAlreadyExists = errors.New("slug already exists")
+	ErrEmptySlug         = errors.New("slug cannot be empty after generation; use alphanumeric characters")
+)
+
+// maxSlugSuffixAttempts is the maximum number of numeric suffixes tried when
+// looking for a unique slug (e.g. "foo-2" … "foo-101").
+const maxSlugSuffixAttempts = 100
+
+// Compiled once at package level to avoid repeated regexp.MustCompile overhead
+// on every call to generateSlug.
+var (
+	// slugNonAlnum removes any character that is not a lowercase letter, digit, or hyphen
+	slugNonAlnum = regexp.MustCompile(`[^a-z0-9\-]+`)
+	// slugMultiHyphen collapses consecutive hyphens into a single one
+	slugMultiHyphen = regexp.MustCompile(`-{2,}`)
 )
 
 // CategoryService handles category business logic
@@ -36,6 +50,9 @@ func (s *CategoryService) Create(req *dto.CreateCategoryRequest) (*dto.CategoryR
 	slug := s.generateSlug(req.Name)
 	if req.Slug != nil && strings.TrimSpace(*req.Slug) != "" {
 		slug = s.generateSlug(*req.Slug)
+	}
+	if slug == "" {
+		return nil, ErrEmptySlug
 	}
 
 	// Ensure slug uniqueness
@@ -106,6 +123,9 @@ func (s *CategoryService) Update(id uint, req *dto.UpdateCategoryRequest) (*dto.
 	// Update slug
 	if req.Slug != nil && strings.TrimSpace(*req.Slug) != "" {
 		newSlug := s.generateSlug(*req.Slug)
+		if newSlug == "" {
+			return nil, ErrEmptySlug
+		}
 		if newSlug != category.Slug {
 			// Check uniqueness excluding current category
 			exists, err := s.categoryRepo.ExistsBySlug(newSlug, id)
@@ -208,7 +228,8 @@ func (s *CategoryService) List(req *dto.CategoryListRequest) (*dto.PaginatedResp
 	}, nil
 }
 
-// generateSlug converts a string to a URL-friendly slug
+// generateSlug converts a string to a URL-friendly slug.
+// Returns an empty string when the input contains no usable alphanumeric characters.
 func (s *CategoryService) generateSlug(input string) string {
 	slug := strings.ToLower(strings.TrimSpace(input))
 
@@ -217,12 +238,10 @@ func (s *CategoryService) generateSlug(input string) string {
 	slug = strings.ReplaceAll(slug, "_", "-")
 
 	// Remove non-alphanumeric characters except hyphens
-	reg := regexp.MustCompile(`[^a-z0-9\-]+`)
-	slug = reg.ReplaceAllString(slug, "")
+	slug = slugNonAlnum.ReplaceAllString(slug, "")
 
 	// Replace multiple hyphens with single hyphen
-	reg = regexp.MustCompile(`-{2,}`)
-	slug = reg.ReplaceAllString(slug, "-")
+	slug = slugMultiHyphen.ReplaceAllString(slug, "-")
 
 	// Trim hyphens from start and end
 	slug = strings.Trim(slug, "-")
@@ -230,7 +249,8 @@ func (s *CategoryService) generateSlug(input string) string {
 	return slug
 }
 
-// ensureUniqueSlug generates a unique slug by appending a suffix if needed
+// ensureUniqueSlug generates a unique slug by appending a numeric suffix if needed.
+// It tries up to maxSlugSuffixAttempts candidates before giving up.
 func (s *CategoryService) ensureUniqueSlug(slug string, excludeID uint) (string, error) {
 	exists, err := s.categoryRepo.ExistsBySlug(slug, excludeID)
 	if err != nil {
@@ -241,7 +261,7 @@ func (s *CategoryService) ensureUniqueSlug(slug string, excludeID uint) (string,
 	}
 
 	// Append numeric suffix to make it unique
-	for i := 2; i <= 100; i++ {
+	for i := 2; i <= maxSlugSuffixAttempts+1; i++ {
 		candidate := fmt.Sprintf("%s-%d", slug, i)
 		exists, err := s.categoryRepo.ExistsBySlug(candidate, excludeID)
 		if err != nil {
@@ -252,7 +272,7 @@ func (s *CategoryService) ensureUniqueSlug(slug string, excludeID uint) (string,
 		}
 	}
 
-	return "", errors.New("could not generate unique slug")
+	return "", errors.New("could not generate unique slug after maximum attempts")
 }
 
 // toCategoryResponse converts a Category model to CategoryResponse DTO
