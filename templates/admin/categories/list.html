@@ -1,0 +1,118 @@
+{{ template "layout" . }}
+
+{{ define "page_content" }}
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">Danh mục</h2>
+    <a href="/admin/categories/new" class="btn btn-primary">+ Thêm mới</a>
+  </div>
+
+  <form method="GET" action="/admin/categories" class="filter-bar">
+    <div class="form-group">
+      <label class="form-label">Tìm kiếm</label>
+      <input type="text" name="search" class="form-control" placeholder="Tên danh mục..." value="{{ .Query.Search }}" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Trạng thái</label>
+      <select name="status" class="form-control">
+        <option value="">Tất cả</option>
+        <option value="active"   {{ if eq .Query.Status "active"   }}selected{{ end }}>Hoạt động</option>
+        <option value="inactive" {{ if eq .Query.Status "inactive" }}selected{{ end }}>Ẩn</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Sắp xếp</label>
+      <select name="sort_by" class="form-control">
+        <option value="sort_order" {{ if eq .Query.SortBy "sort_order" }}selected{{ end }}>Thứ tự</option>
+        <option value="name"       {{ if eq .Query.SortBy "name"       }}selected{{ end }}>Tên</option>
+        <option value="created_at" {{ if eq .Query.SortBy "created_at" }}selected{{ end }}>Ngày tạo</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">&nbsp;</label>
+      <button type="submit" class="btn btn-outline">Lọc</button>
+    </div>
+  </form>
+
+  {{ if .Categories }}
+  <table>
+    <thead>
+      <tr>
+        <th style="width:50px">ID</th>
+        <th>Tên</th>
+        <th>Slug</th>
+        <th>Thứ tự</th>
+        <th>Trạng thái</th>
+        <th>Ngày tạo</th>
+        <th style="width:140px">Thao tác</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .Categories }}
+      <tr>
+        <td>{{ .ID }}</td>
+        <td>
+          <strong>{{ .Name }}</strong>
+          {{ if .Description }}<br/><small style="color:#888">{{ deref .Description }}</small>{{ end }}
+        </td>
+        <td><code style="font-size:.8rem;color:#555">{{ .Slug }}</code></td>
+        <td>{{ .SortOrder }}</td>
+        <td>
+          {{ if eq .Status "active" }}
+            <span class="badge badge-active">Hoạt động</span>
+          {{ else }}
+            <span class="badge badge-inactive">Ẩn</span>
+          {{ end }}
+        </td>
+        <td style="color:#888;font-size:.8rem">{{ .CreatedAt.Format "02/01/2006" }}</td>
+        <td>
+          <div class="actions">
+            <a href="/admin/categories/{{ .ID }}/edit" class="btn btn-sm btn-warning">Sửa</a>
+            <form class="delete-form" method="POST" action="/admin/categories/{{ .ID }}/delete"
+                  onsubmit="return confirm('Xoá danh mục này?')">
+              <button type="submit" class="btn btn-sm btn-danger">Xoá</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
+    <span style="font-size:.85rem;color:#888">
+      Tổng {{ .Pagination.Total }} mục
+    </span>
+    {{ if gt .Pagination.TotalPages 1 }}
+    <div class="pagination">
+      {{ if gt .Pagination.Page 1 }}
+        <a href="?{{ .Query.URLParams }}&page={{ dec .Pagination.Page }}">&lsaquo;</a>
+      {{ else }}
+        <span class="disabled">&lsaquo;</span>
+      {{ end }}
+
+      {{ range .Pagination.Pages }}
+        {{ if eq . $.Pagination.Page }}
+          <span class="active">{{ . }}</span>
+        {{ else }}
+          <a href="?{{ $.Query.URLParams }}&page={{ . }}">{{ . }}</a>
+        {{ end }}
+      {{ end }}
+
+      {{ if lt .Pagination.Page .Pagination.TotalPages }}
+        <a href="?{{ .Query.URLParams }}&page={{ inc .Pagination.Page }}">&rsaquo;</a>
+      {{ else }}
+        <span class="disabled">&rsaquo;</span>
+      {{ end }}
+    </div>
+    {{ end }}
+  </div>
+
+  {{ else }}
+  <div style="text-align:center;padding:48px;color:#aaa">
+    Chưa có danh mục nào.
+    <a href="/admin/categories/new" style="color:#e94560">Thêm ngay</a>
+  </div>
+  {{ end }}
+</div>
+{{ end }}

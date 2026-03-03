@@ -21,6 +21,10 @@ type RouterDependencies struct {
 	AuthHandler    *handler.AuthHandler
 	OAuthHandler   *handler.OAuthHandler
 	ProfileHandler *handler.ProfileHandler
+	CategoryHandler *handler.CategoryHandler
+	AdminCategoryHandler *handler.AdminCategoryHandler
+	ProductHandler       *handler.ProductHandler
+	AdminProductHandler  *handler.AdminProductHandler
 	CorsMiddleware gin.HandlerFunc
 	AuthMiddleware *middleware.AuthMiddleware
 	UploadPath     string
@@ -71,7 +75,11 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 		// Public routes
 		public := v1.Group("")
 		{
-			_ = public // TODO: Add public routes (products list, etc.)
+			products := public.Group("/products")
+			{
+				products.GET("", deps.ProductHandler.List)
+				products.GET("/:slug", deps.ProductHandler.GetBySlug)
+			}
 		}
 
 		// Protected routes (require authentication)
@@ -87,12 +95,43 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 			protected.DELETE("/profile/avatar", deps.ProfileHandler.DeleteAvatar)
 		}
 
-		// Admin routes (require admin role)
-		admin := v1.Group("/admin")
-		admin.Use(deps.AuthMiddleware.RequireAuth())
-		admin.Use(deps.AuthMiddleware.RequireAdmin())
+		// Admin API routes (require admin role) — JSON API
+		adminAPI := v1.Group("/admin")
+		adminAPI.Use(deps.AuthMiddleware.RequireAuth())
+		adminAPI.Use(deps.AuthMiddleware.RequireAdmin())
 		{
-			_ = admin // TODO: Add admin routes
+			categories := adminAPI.Group("/categories")
+			{
+				categories.POST("", deps.CategoryHandler.Create)
+				categories.GET("", deps.CategoryHandler.List)
+				categories.GET("/:id", deps.CategoryHandler.GetByID)
+				categories.PUT("/:id", deps.CategoryHandler.Update)
+				categories.DELETE("/:id", deps.CategoryHandler.Delete)
+			}
+		}
+	}
+
+	// Admin SSR routes — HTML pages
+	adminSSR := router.Group("/admin")
+	{
+		categories := adminSSR.Group("/categories")
+		{
+			categories.GET("", deps.AdminCategoryHandler.List)
+			categories.GET("/new", deps.AdminCategoryHandler.New)
+			categories.POST("", deps.AdminCategoryHandler.Create)
+			categories.GET("/:id/edit", deps.AdminCategoryHandler.Edit)
+			categories.POST("/:id/update", deps.AdminCategoryHandler.Update)
+			categories.POST("/:id/delete", deps.AdminCategoryHandler.Delete)
+		}
+
+		products := adminSSR.Group("/products")
+		{
+			products.GET("", deps.AdminProductHandler.List)
+			products.GET("/new", deps.AdminProductHandler.New)
+			products.POST("", deps.AdminProductHandler.Create)
+			products.GET("/:id/edit", deps.AdminProductHandler.Edit)
+			products.POST("/:id/update", deps.AdminProductHandler.Update)
+			products.POST("/:id/delete", deps.AdminProductHandler.Delete)
 		}
 	}
 
