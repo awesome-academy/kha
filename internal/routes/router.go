@@ -1,18 +1,29 @@
 package routes
 
 import (
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/kha/foods-drinks/internal/handler"
 	"github.com/kha/foods-drinks/internal/middleware"
 )
+
+// UploadURLPrefix is the public route prefix under which uploaded files are served.
+// It must match the first argument passed to router.Static below.
+const UploadURLPrefix = "/uploads"
 
 // RouterDependencies holds all dependencies for router setup
 type RouterDependencies struct {
 	HealthHandler  *handler.HealthHandler
 	AuthHandler    *handler.AuthHandler
 	OAuthHandler   *handler.OAuthHandler
+	ProfileHandler *handler.ProfileHandler
 	CorsMiddleware gin.HandlerFunc
 	AuthMiddleware *middleware.AuthMiddleware
+	UploadPath     string
 }
 
 func SetupRouter(deps *RouterDependencies) *gin.Engine {
@@ -22,6 +33,18 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 	router.Use(deps.CorsMiddleware) // CORS first
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
+
+	// Serve uploaded files as static content, but only when UploadPath is
+	// configured AND resolves to a path within the current working directory.
+	// This prevents a misconfigured UploadPath (e.g. "." or "/") from
+	// accidentally exposing source code or system files.
+	if deps.UploadPath != "" {
+		if safe, absPath := isSafeUploadPath(deps.UploadPath); safe {
+			router.Static(UploadURLPrefix, absPath)
+		} else {
+			log.Fatalf("Unsafe upload path configured (%q): must be a subdirectory of the working directory", deps.UploadPath)
+		}
+	}
 
 	// Health check (public)
 	router.GET("/health", deps.HealthHandler.HealthCheck)
@@ -58,6 +81,10 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 			// Profile routes
 			protected.GET("/profile", deps.AuthHandler.GetProfile)
 			protected.PUT("/profile", deps.AuthHandler.UpdateProfile)
+
+			// Avatar routes
+			protected.POST("/profile/avatar", deps.ProfileHandler.UploadAvatar)
+			protected.DELETE("/profile/avatar", deps.ProfileHandler.DeleteAvatar)
 		}
 
 		// Admin routes (require admin role)
@@ -70,4 +97,26 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 	}
 
 	return router
+}
+
+// isSafeUploadPath resolves uploadPath to an absolute path and verifies it is a
+// strict subdirectory of the current working directory. Returns (false, "") when
+// the path is unsafe (e.g. ".", "/", or anything that escapes the working tree).
+func isSafeUploadPath(uploadPath string) (bool, string) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return false, ""
+	}
+
+	absUpload, err := filepath.Abs(uploadPath)
+	if err != nil {
+		return false, ""
+	}
+
+	// Must be a strict subdirectory – not equal to cwd itself
+	if !strings.HasPrefix(absUpload, cwd+string(filepath.Separator)) {
+		return false, ""
+	}
+
+	return true, absUpload
 }

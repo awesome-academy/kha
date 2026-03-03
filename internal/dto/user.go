@@ -21,3 +21,8 @@ func ToUserResponse(user *models.User) UserResponse {
 		UpdatedAt:       user.UpdatedAt,
 	}
 }
+
+// AvatarResponse returned after avatar upload
+type AvatarResponse struct {
+	AvatarURL string `json:"avatar_url"`
+}

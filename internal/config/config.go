@@ -13,6 +13,13 @@ type Config struct {
 	Database DatabaseConfig `mapstructure:"database"`
 	JWT      JWTConfig      `mapstructure:"jwt"`
 	OAuth    OAuthConfig    `mapstructure:"oauth"`
+	Upload   UploadConfig   `mapstructure:"upload"`
+}
+
+type UploadConfig struct {
+	Path         string   `mapstructure:"path"`
+	MaxSize      int64    `mapstructure:"max_size"`
+	AllowedTypes []string `mapstructure:"allowed_types"`
 }
 
 type AppConfig struct {
