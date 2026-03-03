@@ -51,6 +51,7 @@ type OAuthProvider interface {
 type OAuthService struct {
 	userRepo       *repository.UserRepository
 	socialAuthRepo *repository.SocialAuthRepository
+	cartRepo       *repository.CartRepository
 	authService    *AuthService
 	providers      map[string]OAuthProvider
 }
@@ -59,6 +60,7 @@ type OAuthService struct {
 func NewOAuthService(
 	userRepo *repository.UserRepository,
 	socialAuthRepo *repository.SocialAuthRepository,
+	cartRepo *repository.CartRepository,
 	authService *AuthService,
 	oauthConfig *config.OAuthConfig,
 ) *OAuthService {
@@ -82,6 +84,7 @@ func NewOAuthService(
 	return &OAuthService{
 		userRepo:       userRepo,
 		socialAuthRepo: socialAuthRepo,
+		cartRepo:       cartRepo,
 		authService:    authService,
 		providers:      providers,
 	}
@@ -183,6 +186,7 @@ func (s *OAuthService) findOrCreateUser(userInfo *OAuthUserInfo, provider string
 	txErr := db.Transaction(func(tx *gorm.DB) error {
 		userRepoTx := s.userRepo.WithTx(tx)
 		socialAuthRepoTx := s.socialAuthRepo.WithTx(tx)
+		cartRepoTx := s.cartRepo.WithTx(tx)
 
 		// Create new user if not exists
 		if user == nil {
@@ -204,6 +208,9 @@ func (s *OAuthService) findOrCreateUser(userInfo *OAuthUserInfo, provider string
 				user.EmailVerifiedAt = &now
 			}
 			if err := userRepoTx.Create(user); err != nil {
+				return err
+			}
+			if err := cartRepoTx.Create(&models.Cart{UserID: user.ID}); err != nil {
 				return err
 			}
 		}
