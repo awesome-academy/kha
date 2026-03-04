@@ -3,6 +3,7 @@ package repository
 import (
 	"github.com/kha/foods-drinks/internal/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type CartRepository struct {
@@ -37,6 +38,30 @@ func (r *CartRepository) FindByUserID(userID uint) (*models.Cart, error) {
 		return nil, err
 	}
 	return &cart, nil
+}
+
+func (r *CartRepository) GetOrCreateByUserID(userID uint) (*models.Cart, error) {
+	cart := &models.Cart{UserID: userID}
+	err := r.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "user_id"}},
+		DoNothing: true,
+	}).Create(cart).Error
+	if err != nil {
+		return nil, err
+	}
+
+	if cart.ID != 0 {
+		return cart, nil
+	}
+
+	err = r.db.Select("id", "user_id", "created_at", "updated_at").
+		Where("user_id = ?", userID).
+		First(cart).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return cart, nil
 }
 
 func (r *CartRepository) ExistsByUserID(userID uint) (bool, error) {

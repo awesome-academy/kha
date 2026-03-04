@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kha/foods-drinks/internal/dto"
@@ -19,6 +21,16 @@ func NewCartHandler(cartService *service.CartService) *CartHandler {
 	return &CartHandler{cartService: cartService}
 }
 
+// Get godoc
+// @Summary Get current user cart
+// @Description Get cart of currently authenticated user
+// @Tags cart
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} dto.CartResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /api/v1/cart [get]
 func (h *CartHandler) Get(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
@@ -42,6 +54,20 @@ func (h *CartHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, cart)
 }
 
+// Add godoc
+// @Summary Add item to cart
+// @Description Add product to current user cart
+// @Tags cart
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body dto.AddCartItemRequest true "Add cart item request"
+// @Success 200 {object} dto.CartResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /api/v1/cart/items [post]
 func (h *CartHandler) Add(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
@@ -70,6 +96,21 @@ func (h *CartHandler) Add(c *gin.Context) {
 	c.JSON(http.StatusOK, cart)
 }
 
+// Update godoc
+// @Summary Update item quantity in cart
+// @Description Update quantity for a product in current user cart
+// @Tags cart
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param product_id path int true "Product ID"
+// @Param request body dto.UpdateCartItemRequest true "Update cart item request"
+// @Success 200 {object} dto.CartResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 404 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /api/v1/cart/items/{product_id} [put]
 func (h *CartHandler) Update(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
@@ -80,8 +121,8 @@ func (h *CartHandler) Update(c *gin.Context) {
 		return
 	}
 
-	productID, err := strconv.ParseUint(c.Param("product_id"), 10, 32)
-	if err != nil || productID == 0 {
+	productID, ok := parsePositiveUintParam(c.Param("product_id"))
+	if !ok {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Error:   "invalid_product_id",
 			Message: "Invalid product ID",
@@ -107,6 +148,18 @@ func (h *CartHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, cart)
 }
 
+// Remove godoc
+// @Summary Remove item from cart
+// @Description Remove a product from current user cart
+// @Tags cart
+// @Produce json
+// @Security BearerAuth
+// @Param product_id path int true "Product ID"
+// @Success 200 {object} dto.CartResponse
+// @Failure 400 {object} dto.ErrorResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /api/v1/cart/items/{product_id} [delete]
 func (h *CartHandler) Remove(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
@@ -117,8 +170,8 @@ func (h *CartHandler) Remove(c *gin.Context) {
 		return
 	}
 
-	productID, err := strconv.ParseUint(c.Param("product_id"), 10, 32)
-	if err != nil || productID == 0 {
+	productID, ok := parsePositiveUintParam(c.Param("product_id"))
+	if !ok {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Error:   "invalid_product_id",
 			Message: "Invalid product ID",
@@ -135,6 +188,16 @@ func (h *CartHandler) Remove(c *gin.Context) {
 	c.JSON(http.StatusOK, cart)
 }
 
+// Clear godoc
+// @Summary Clear current user cart
+// @Description Remove all items in current user cart
+// @Tags cart
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} dto.CartResponse
+// @Failure 401 {object} dto.ErrorResponse
+// @Failure 500 {object} dto.ErrorResponse
+// @Router /api/v1/cart [delete]
 func (h *CartHandler) Clear(c *gin.Context) {
 	userID, ok := middleware.GetUserID(c)
 	if !ok {
@@ -159,27 +222,50 @@ func (h *CartHandler) Clear(c *gin.Context) {
 }
 
 func (h *CartHandler) handleCartError(c *gin.Context, err error) {
-	switch {
-	case err == service.ErrProductNotFound:
-		c.JSON(http.StatusNotFound, dto.ErrorResponse{
-			Error:   "product_not_found",
-			Message: "Product not found",
-		})
-	case err == service.ErrInsufficientStock:
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "insufficient_stock",
-			Message: err.Error(),
-		})
-	case err == service.ErrInvalidQuantity:
-		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
-			Error:   "invalid_quantity",
-			Message: "Quantity must be at least 1",
-		})
-	default:
-		log.Printf("Cart error: %v", err)
-		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{
-			Error:   "internal_error",
-			Message: "An unexpected error occurred",
+	respond := func(status int, code, fallbackMessage string) {
+		c.JSON(status, dto.ErrorResponse{
+			Error:   code,
+			Message: fallbackMessage,
 		})
 	}
+
+	switch {
+	case errors.Is(err, service.ErrProductNotFound):
+		respond(http.StatusNotFound, "product_not_found", "Product not found")
+	case errors.Is(err, service.ErrInsufficientStock):
+		message := "Insufficient stock"
+		if err != nil && err.Error() != "" {
+			message = err.Error()
+		}
+		respond(http.StatusBadRequest, "insufficient_stock", message)
+	case errors.Is(err, service.ErrInvalidQuantity):
+		respond(http.StatusBadRequest, "invalid_quantity", "Quantity must be at least 1")
+	case errors.Is(err, service.ErrCartItemNotFound):
+		respond(http.StatusNotFound, "cart_item_not_found", "Item not found in cart")
+	case errors.Is(err, service.ErrCartNotFound):
+		respond(http.StatusNotFound, "cart_not_found", "Cart not found")
+	default:
+		log.Printf("Cart error: %v", err)
+		respond(http.StatusInternalServerError, "internal_error", "An unexpected error occurred")
+	}
+}
+
+func parsePositiveUintParam(raw string) (uint64, bool) {
+	value := strings.TrimSpace(raw)
+	if value == "" || len(value) > 20 {
+		return 0, false
+	}
+
+	for i := 0; i < len(value); i++ {
+		if value[i] < '0' || value[i] > '9' {
+			return 0, false
+		}
+	}
+
+	id, err := strconv.ParseUint(value, 10, 64)
+	if err != nil || id == 0 {
+		return 0, false
+	}
+
+	return id, true
 }

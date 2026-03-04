@@ -12,6 +12,7 @@ import (
 
 var (
 	ErrCartNotFound      = errors.New("cart not found")
+	ErrCartItemNotFound  = errors.New("cart item not found")
 	ErrInsufficientStock = errors.New("insufficient stock")
 	ErrInvalidQuantity   = errors.New("quantity must be at least 1")
 )
@@ -29,15 +30,11 @@ func NewCartService(cartRepo *repository.CartRepository, productRepo *repository
 }
 
 func (s *CartService) EnsureCartForUser(userID uint) error {
-	exists, err := s.cartRepo.ExistsByUserID(userID)
+	_, err := s.cartRepo.GetOrCreateByUserID(userID)
 	if err != nil {
-		return fmt.Errorf("failed to check cart: %w", err)
+		return fmt.Errorf("failed to ensure cart: %w", err)
 	}
-	if exists {
-		return nil
-	}
-	cart := &models.Cart{UserID: userID}
-	return s.cartRepo.Create(cart)
+	return nil
 }
 
 func (s *CartService) GetCart(userID uint) (*dto.CartResponse, error) {
@@ -121,6 +118,10 @@ func (s *CartService) UpdateItem(userID uint, productID uint, quantity int) (*dt
 		return nil, fmt.Errorf("failed to find product: %w", err)
 	}
 
+	if product.Status != models.ProductStatusActive {
+		return nil, ErrProductNotFound
+	}
+
 	if product.Stock < quantity {
 		return nil, fmt.Errorf("%w: available %d, requested %d", ErrInsufficientStock, product.Stock, quantity)
 	}
@@ -133,7 +134,7 @@ func (s *CartService) UpdateItem(userID uint, productID uint, quantity int) (*dt
 	item, err := s.cartRepo.FindCartItem(cart.ID, productID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrCartNotFound
+			return nil, ErrCartItemNotFound
 		}
 		return nil, fmt.Errorf("failed to find cart item: %w", err)
 	}
@@ -173,16 +174,9 @@ func (s *CartService) ClearCart(userID uint) (*dto.CartResponse, error) {
 }
 
 func (s *CartService) getOrCreateCart(userID uint) (*models.Cart, error) {
-	cart, err := s.cartRepo.FindByUserID(userID)
+	cart, err := s.cartRepo.GetOrCreateByUserID(userID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			cart = &models.Cart{UserID: userID}
-			if err := s.cartRepo.Create(cart); err != nil {
-				return nil, fmt.Errorf("failed to create cart: %w", err)
-			}
-			return cart, nil
-		}
-		return nil, fmt.Errorf("failed to get cart: %w", err)
+		return nil, fmt.Errorf("failed to get or create cart: %w", err)
 	}
 	return cart, nil
 }
