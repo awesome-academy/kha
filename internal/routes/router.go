@@ -25,6 +25,7 @@ type RouterDependencies struct {
 	ProductHandler       *handler.ProductHandler
 	AdminProductHandler  *handler.AdminProductHandler
 	CartHandler          *handler.CartHandler
+	OrderHandler         *handler.OrderHandler
 	CorsMiddleware       gin.HandlerFunc
 	AuthMiddleware       *middleware.AuthMiddleware
 	UploadPath           string
@@ -100,6 +101,11 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 			protected.PUT("/cart/items/:product_id", deps.CartHandler.Update)
 			protected.DELETE("/cart/items/:product_id", deps.CartHandler.Remove)
 			protected.DELETE("/cart", deps.CartHandler.Clear)
+
+			// Order routes
+			protected.POST("/orders", deps.OrderHandler.Create)
+			protected.GET("/orders", deps.OrderHandler.List)
+			protected.GET("/orders/:id", deps.OrderHandler.GetDetail)
 		}
 
 	}
