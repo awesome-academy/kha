@@ -17,17 +17,17 @@ const UploadURLPrefix = "/uploads"
 
 // RouterDependencies holds all dependencies for router setup
 type RouterDependencies struct {
-	HealthHandler  *handler.HealthHandler
-	AuthHandler    *handler.AuthHandler
-	OAuthHandler   *handler.OAuthHandler
-	ProfileHandler *handler.ProfileHandler
-	CategoryHandler *handler.CategoryHandler
+	HealthHandler        *handler.HealthHandler
+	AuthHandler          *handler.AuthHandler
+	OAuthHandler         *handler.OAuthHandler
+	ProfileHandler       *handler.ProfileHandler
 	AdminCategoryHandler *handler.AdminCategoryHandler
 	ProductHandler       *handler.ProductHandler
 	AdminProductHandler  *handler.AdminProductHandler
-	CorsMiddleware gin.HandlerFunc
-	AuthMiddleware *middleware.AuthMiddleware
-	UploadPath     string
+	CartHandler          *handler.CartHandler
+	CorsMiddleware       gin.HandlerFunc
+	AuthMiddleware       *middleware.AuthMiddleware
+	UploadPath           string
 }
 
 func SetupRouter(deps *RouterDependencies) *gin.Engine {
@@ -93,22 +93,15 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 			// Avatar routes
 			protected.POST("/profile/avatar", deps.ProfileHandler.UploadAvatar)
 			protected.DELETE("/profile/avatar", deps.ProfileHandler.DeleteAvatar)
+
+			// Cart routes
+			protected.GET("/cart", deps.CartHandler.Get)
+			protected.POST("/cart/items", deps.CartHandler.Add)
+			protected.PUT("/cart/items/:product_id", deps.CartHandler.Update)
+			protected.DELETE("/cart/items/:product_id", deps.CartHandler.Remove)
+			protected.DELETE("/cart", deps.CartHandler.Clear)
 		}
 
-		// Admin API routes (require admin role) — JSON API
-		adminAPI := v1.Group("/admin")
-		adminAPI.Use(deps.AuthMiddleware.RequireAuth())
-		adminAPI.Use(deps.AuthMiddleware.RequireAdmin())
-		{
-			categories := adminAPI.Group("/categories")
-			{
-				categories.POST("", deps.CategoryHandler.Create)
-				categories.GET("", deps.CategoryHandler.List)
-				categories.GET("/:id", deps.CategoryHandler.GetByID)
-				categories.PUT("/:id", deps.CategoryHandler.Update)
-				categories.DELETE("/:id", deps.CategoryHandler.Delete)
-			}
-		}
 	}
 
 	// Admin SSR routes — HTML pages

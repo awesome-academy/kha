@@ -32,15 +32,17 @@ type JWTClaims struct {
 
 // AuthService handles authentication operations
 type AuthService struct {
-	userRepo  *repository.UserRepository
-	jwtConfig *config.JWTConfig
+	userRepo    *repository.UserRepository
+	cartService *CartService
+	jwtConfig   *config.JWTConfig
 }
 
 // NewAuthService creates a new AuthService
-func NewAuthService(userRepo *repository.UserRepository, jwtConfig *config.JWTConfig) *AuthService {
+func NewAuthService(userRepo *repository.UserRepository, cartService *CartService, jwtConfig *config.JWTConfig) *AuthService {
 	return &AuthService{
-		userRepo:  userRepo,
-		jwtConfig: jwtConfig,
+		userRepo:    userRepo,
+		cartService: cartService,
+		jwtConfig:   jwtConfig,
 	}
 }
 
@@ -71,6 +73,10 @@ func (s *AuthService) Register(req *dto.RegisterRequest) (*dto.AuthResponse, err
 	}
 
 	if err := s.userRepo.Create(user); err != nil {
+		return nil, err
+	}
+
+	if err := s.cartService.EnsureCartForUser(user.ID); err != nil {
 		return nil, err
 	}
 

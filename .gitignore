@@ -37,3 +37,6 @@ coverage.html
 
 # Air live reload
 .air.toml
+
+# Assets
+/uploads
