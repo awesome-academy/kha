@@ -19,6 +19,9 @@ type OrderItemResponse struct {
 
 type OrderResponse struct {
 	ID              uint                `json:"id"`
+	UserID          uint                `json:"user_id"`
+	UserName        string              `json:"user_name,omitempty"`
+	UserEmail       string              `json:"user_email,omitempty"`
 	OrderNumber     string              `json:"order_number"`
 	TotalAmount     float64             `json:"total_amount"`
 	Status          string              `json:"status"`
@@ -36,4 +39,18 @@ type OrderListRequest struct {
 	Status   string `form:"status" binding:"omitempty,oneof=pending confirmed processing shipping delivered cancelled"`
 	FromDate string `form:"from_date" binding:"omitempty"`
 	ToDate   string `form:"to_date" binding:"omitempty"`
+}
+
+type AdminOrderListRequest struct {
+	Page     int    `form:"page,default=1" binding:"min=1"`
+	PageSize int    `form:"page_size,default=15" binding:"min=1,max=100"`
+	Status   string `form:"status" binding:"omitempty,oneof=pending confirmed processing shipping delivered cancelled"`
+	FromDate string `form:"from_date" binding:"omitempty"`
+	ToDate   string `form:"to_date" binding:"omitempty"`
+	SortBy   string `form:"sort_by,default=created_at" binding:"omitempty,oneof=created_at total_amount status"`
+	SortDir  string `form:"sort_dir,default=desc" binding:"omitempty,oneof=asc desc"`
+}
+
+type AdminUpdateOrderStatusRequest struct {
+	Status string `form:"status" binding:"required,oneof=pending confirmed processing shipping delivered cancelled"`
 }

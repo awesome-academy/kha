@@ -17,10 +17,11 @@ import (
 )
 
 var (
-	ErrCartEmpty         = errors.New("cart is empty")
-	ErrOrderNotFound     = errors.New("order not found")
-	ErrInvalidDateFilter = errors.New("invalid date filter")
-	ErrInvalidOrderInput = errors.New("invalid order input")
+	ErrCartEmpty          = errors.New("cart is empty")
+	ErrOrderNotFound      = errors.New("order not found")
+	ErrInvalidDateFilter  = errors.New("invalid date filter")
+	ErrInvalidOrderInput  = errors.New("invalid order input")
+	ErrInvalidOrderStatus = errors.New("invalid order status transition")
 )
 
 type OrderService struct {
@@ -207,9 +208,97 @@ func (s *OrderService) GetOrderDetail(userID, orderID uint) (*dto.OrderResponse,
 	return s.toResponse(order, true), nil
 }
 
+func (s *OrderService) ListOrdersForAdmin(req *dto.AdminOrderListRequest) (*dto.PaginatedResponse, error) {
+	if req.Page == 0 {
+		req.Page = 1
+	}
+	if req.PageSize == 0 {
+		req.PageSize = 15
+	}
+	if req.SortBy == "" {
+		req.SortBy = "created_at"
+	}
+	if req.SortDir == "" {
+		req.SortDir = "desc"
+	}
+
+	fromDate, toDate, err := parseOrderDateRange(req.FromDate, req.ToDate)
+	if err != nil {
+		return nil, err
+	}
+
+	offset := (req.Page - 1) * req.PageSize
+	orders, total, err := s.orderRepo.ListForAdmin(repository.AdminOrderListParams{
+		Offset:   offset,
+		Limit:    req.PageSize,
+		Status:   req.Status,
+		FromDate: fromDate,
+		ToDate:   toDate,
+		SortBy:   req.SortBy,
+		SortDir:  req.SortDir,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list orders: %w", err)
+	}
+
+	items := make([]dto.OrderResponse, len(orders))
+	for i, order := range orders {
+		items[i] = *s.toResponse(&order, true)
+	}
+
+	totalPages := int(math.Ceil(float64(total) / float64(req.PageSize)))
+	if totalPages == 0 {
+		totalPages = 1
+	}
+
+	return &dto.PaginatedResponse{
+		Items:      items,
+		Total:      total,
+		Page:       req.Page,
+		PageSize:   req.PageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (s *OrderService) GetOrderDetailForAdmin(orderID uint) (*dto.OrderResponse, error) {
+	order, err := s.orderRepo.FindByID(orderID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrOrderNotFound
+		}
+		return nil, fmt.Errorf("failed to find order: %w", err)
+	}
+	return s.toResponse(order, true), nil
+}
+
+func (s *OrderService) UpdateOrderStatusForAdmin(orderID uint, status string) error {
+	order, err := s.orderRepo.FindByID(orderID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrOrderNotFound
+		}
+		return fmt.Errorf("failed to find order: %w", err)
+	}
+
+	status = strings.TrimSpace(status)
+	if !isValidOrderStatus(status) {
+		return ErrInvalidOrderStatus
+	}
+	if !canTransitionOrderStatus(order.Status, status) {
+		return ErrInvalidOrderStatus
+	}
+
+	order.Status = status
+	if err := s.orderRepo.Update(order); err != nil {
+		return fmt.Errorf("failed to update order status: %w", err)
+	}
+	return nil
+}
+
 func (s *OrderService) toResponse(order *models.Order, includeItems bool) *dto.OrderResponse {
 	resp := &dto.OrderResponse{
 		ID:              order.ID,
+		UserID:          order.UserID,
 		OrderNumber:     order.OrderNumber,
 		TotalAmount:     order.TotalAmount,
 		Status:          order.Status,
@@ -218,6 +307,11 @@ func (s *OrderService) toResponse(order *models.Order, includeItems bool) *dto.O
 		Notes:           order.Notes,
 		CreatedAt:       order.CreatedAt,
 		UpdatedAt:       order.UpdatedAt,
+	}
+
+	if order.User.ID > 0 {
+		resp.UserName = order.User.FullName
+		resp.UserEmail = order.User.Email
 	}
 
 	if includeItems {
@@ -290,4 +384,39 @@ func isDuplicateKeyError(err error) bool {
 	}
 	message := strings.ToLower(err.Error())
 	return strings.Contains(message, "duplicate") || strings.Contains(message, "1062")
+}
+
+func isValidOrderStatus(status string) bool {
+	switch status {
+	case models.OrderStatusPending,
+		models.OrderStatusConfirmed,
+		models.OrderStatusProcessing,
+		models.OrderStatusShipping,
+		models.OrderStatusDelivered,
+		models.OrderStatusCancelled:
+		return true
+	default:
+		return false
+	}
+}
+
+func canTransitionOrderStatus(from, to string) bool {
+	if from == to {
+		return true
+	}
+
+	switch from {
+	case models.OrderStatusPending:
+		return to == models.OrderStatusConfirmed || to == models.OrderStatusCancelled
+	case models.OrderStatusConfirmed:
+		return to == models.OrderStatusProcessing || to == models.OrderStatusCancelled
+	case models.OrderStatusProcessing:
+		return to == models.OrderStatusShipping || to == models.OrderStatusCancelled
+	case models.OrderStatusShipping:
+		return to == models.OrderStatusDelivered
+	case models.OrderStatusDelivered, models.OrderStatusCancelled:
+		return false
+	default:
+		return false
+	}
 }

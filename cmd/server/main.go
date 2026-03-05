@@ -86,6 +86,7 @@ func main() {
 	adminCategoryHandler := handler.NewAdminCategoryHandler(categoryService, funcMap)
 	productHandler := handler.NewProductHandler(productService)
 	adminProductHandler := handler.NewAdminProductHandler(productService, categoryService, funcMap)
+	adminOrderHandler := handler.NewAdminOrderHandler(orderService, funcMap)
 	cartHandler := handler.NewCartHandler(cartService)
 	orderHandler := handler.NewOrderHandler(orderService)
 
@@ -99,6 +100,7 @@ func main() {
 		AdminCategoryHandler: adminCategoryHandler,
 		ProductHandler:       productHandler,
 		AdminProductHandler:  adminProductHandler,
+		AdminOrderHandler:    adminOrderHandler,
 		CartHandler:          cartHandler,
 		OrderHandler:         orderHandler,
 		CorsMiddleware:       middleware.CORSConfig(),
