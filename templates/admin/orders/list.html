@@ -1,0 +1,132 @@
+{{ template "layout" . }}
+
+{{ define "page_content" }}
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">Đơn hàng</h2>
+  </div>
+
+  <form method="GET" action="/admin/orders" class="filter-bar">
+    <div class="form-group">
+      <label class="form-label">Trạng thái</label>
+      <select name="status" class="form-control">
+        <option value="">Tất cả</option>
+        <option value="pending" {{ if eq .Query.Status "pending" }}selected{{ end }}>Pending</option>
+        <option value="confirmed" {{ if eq .Query.Status "confirmed" }}selected{{ end }}>Confirmed</option>
+        <option value="processing" {{ if eq .Query.Status "processing" }}selected{{ end }}>Processing</option>
+        <option value="shipping" {{ if eq .Query.Status "shipping" }}selected{{ end }}>Shipping</option>
+        <option value="delivered" {{ if eq .Query.Status "delivered" }}selected{{ end }}>Delivered</option>
+        <option value="cancelled" {{ if eq .Query.Status "cancelled" }}selected{{ end }}>Cancelled</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Từ ngày</label>
+      <input type="date" name="from_date" class="form-control" value="{{ .Query.FromDate }}" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Đến ngày</label>
+      <input type="date" name="to_date" class="form-control" value="{{ .Query.ToDate }}" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Sắp xếp</label>
+      <select name="sort_by" class="form-control">
+        <option value="created_at" {{ if eq .Query.SortBy "created_at" }}selected{{ end }}>Ngày tạo</option>
+        <option value="total_amount" {{ if eq .Query.SortBy "total_amount" }}selected{{ end }}>Giá trị đơn</option>
+        <option value="status" {{ if eq .Query.SortBy "status" }}selected{{ end }}>Trạng thái</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Hướng</label>
+      <select name="sort_dir" class="form-control">
+        <option value="desc" {{ if eq .Query.SortDir "desc" }}selected{{ end }}>Giảm dần</option>
+        <option value="asc" {{ if eq .Query.SortDir "asc" }}selected{{ end }}>Tăng dần</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">&nbsp;</label>
+      <button type="submit" class="btn btn-outline">Lọc</button>
+    </div>
+  </form>
+
+  {{ if .Orders }}
+  <table>
+    <thead>
+      <tr>
+        <th style="width:50px">ID</th>
+        <th>Mã đơn</th>
+        <th>Khách hàng</th>
+        <th>Số món</th>
+        <th>Tổng tiền</th>
+        <th>Trạng thái</th>
+        <th>Ngày tạo</th>
+        <th style="width:90px">Chi tiết</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .Orders }}
+      <tr>
+        <td>{{ .ID }}</td>
+        <td><strong>{{ .OrderNumber }}</strong></td>
+        <td>
+          {{ if .UserName }}<strong>{{ .UserName }}</strong><br/>{{ end }}
+          <small style="color:#888">{{ if .UserEmail }}{{ .UserEmail }}{{ else }}User #{{ .UserID }}{{ end }}</small>
+        </td>
+        <td>{{ len .Items }}</td>
+        <td style="font-weight:600">{{ printf "%.0f" .TotalAmount }}đ</td>
+        <td>
+          {{ if eq .Status "pending" }}
+            <span class="badge" style="background:#e5e7eb;color:#374151">Pending</span>
+          {{ else if eq .Status "confirmed" }}
+            <span class="badge" style="background:#dbeafe;color:#1e40af">Confirmed</span>
+          {{ else if eq .Status "processing" }}
+            <span class="badge" style="background:#ede9fe;color:#5b21b6">Processing</span>
+          {{ else if eq .Status "shipping" }}
+            <span class="badge" style="background:#fef3c7;color:#92400e">Shipping</span>
+          {{ else if eq .Status "delivered" }}
+            <span class="badge badge-active">Delivered</span>
+          {{ else }}
+            <span class="badge badge-inactive">Cancelled</span>
+          {{ end }}
+        </td>
+        <td style="color:#888;font-size:.8rem">{{ .CreatedAt.Format "02/01/2006 15:04" }}</td>
+        <td>
+          <a href="/admin/orders/{{ .ID }}" class="btn btn-sm btn-warning">Xem</a>
+        </td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
+    <span style="font-size:.85rem;color:#888">Tổng {{ .Pagination.Total }} đơn hàng</span>
+    {{ if gt .Pagination.TotalPages 1 }}
+    <div class="pagination">
+      {{ if gt .Pagination.Page 1 }}
+        <a href="?{{ .Query.URLParams }}&page={{ dec .Pagination.Page }}">&lsaquo;</a>
+      {{ else }}
+        <span class="disabled">&lsaquo;</span>
+      {{ end }}
+
+      {{ range .Pagination.Pages }}
+        {{ if eq . $.Pagination.Page }}
+          <span class="active">{{ . }}</span>
+        {{ else }}
+          <a href="?{{ $.Query.URLParams }}&page={{ . }}">{{ . }}</a>
+        {{ end }}
+      {{ end }}
+
+      {{ if lt .Pagination.Page .Pagination.TotalPages }}
+        <a href="?{{ .Query.URLParams }}&page={{ inc .Pagination.Page }}">&rsaquo;</a>
+      {{ else }}
+        <span class="disabled">&rsaquo;</span>
+      {{ end }}
+    </div>
+    {{ end }}
+  </div>
+  {{ else }}
+  <div style="text-align:center;padding:48px;color:#aaa">
+    Chưa có đơn hàng nào.
+  </div>
+  {{ end }}
+</div>
+{{ end }}

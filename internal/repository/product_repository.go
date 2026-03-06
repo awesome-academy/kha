@@ -3,6 +3,7 @@ package repository
 import (
 	"github.com/kha/foods-drinks/internal/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type ProductRepository struct {
@@ -11,6 +12,10 @@ type ProductRepository struct {
 
 func NewProductRepository(db *gorm.DB) *ProductRepository {
 	return &ProductRepository{db: db}
+}
+
+func (r *ProductRepository) WithTx(tx *gorm.DB) *ProductRepository {
+	return &ProductRepository{db: tx}
 }
 
 func (r *ProductRepository) Create(product *models.Product) error {
@@ -26,6 +31,25 @@ func (r *ProductRepository) FindByID(id uint) (*models.Product, error) {
 		return nil, err
 	}
 	return &p, nil
+}
+
+func (r *ProductRepository) FindByIDForUpdate(id uint) (*models.Product, error) {
+	var p models.Product
+	err := r.db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&p, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+func (r *ProductRepository) DecreaseStock(id uint, quantity int) (bool, error) {
+	result := r.db.Model(&models.Product{}).
+		Where("id = ? AND stock >= ?", id, quantity).
+		Update("stock", gorm.Expr("stock - ?", quantity))
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return result.RowsAffected > 0, nil
 }
 
 func (r *ProductRepository) FindBySlug(slug string) (*models.Product, error) {

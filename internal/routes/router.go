@@ -24,7 +24,9 @@ type RouterDependencies struct {
 	AdminCategoryHandler *handler.AdminCategoryHandler
 	ProductHandler       *handler.ProductHandler
 	AdminProductHandler  *handler.AdminProductHandler
+	AdminOrderHandler    *handler.AdminOrderHandler
 	CartHandler          *handler.CartHandler
+	OrderHandler         *handler.OrderHandler
 	CorsMiddleware       gin.HandlerFunc
 	AuthMiddleware       *middleware.AuthMiddleware
 	UploadPath           string
@@ -100,6 +102,11 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 			protected.PUT("/cart/items/:product_id", deps.CartHandler.Update)
 			protected.DELETE("/cart/items/:product_id", deps.CartHandler.Remove)
 			protected.DELETE("/cart", deps.CartHandler.Clear)
+
+			// Order routes
+			protected.POST("/orders", deps.OrderHandler.Create)
+			protected.GET("/orders", deps.OrderHandler.List)
+			protected.GET("/orders/:id", deps.OrderHandler.GetDetail)
 		}
 
 	}
@@ -125,6 +132,13 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 			products.GET("/:id/edit", deps.AdminProductHandler.Edit)
 			products.POST("/:id/update", deps.AdminProductHandler.Update)
 			products.POST("/:id/delete", deps.AdminProductHandler.Delete)
+		}
+
+		orders := adminSSR.Group("/orders")
+		{
+			orders.GET("", deps.AdminOrderHandler.List)
+			orders.GET("/:id", deps.AdminOrderHandler.Detail)
+			orders.POST("/:id/status", deps.AdminOrderHandler.UpdateStatus)
 		}
 	}
 

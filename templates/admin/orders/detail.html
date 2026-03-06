@@ -1,0 +1,82 @@
+{{ template "layout" . }}
+
+{{ define "page_content" }}
+<div>
+  <div style="margin-bottom:20px">
+    <a href="/admin/orders" class="btn btn-outline btn-sm">&larr; Quay lại danh sách</a>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header">
+      <h2 class="card-title">Chi tiết đơn hàng {{ .Order.OrderNumber }}</h2>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:.9rem">
+      <div><strong>ID:</strong> {{ .Order.ID }}</div>
+      <div><strong>Trạng thái:</strong> {{ .Order.Status }}</div>
+      <div><strong>Khách hàng:</strong> {{ if .Order.UserName }}{{ .Order.UserName }}{{ else }}User #{{ .Order.UserID }}{{ end }}</div>
+      <div><strong>Email:</strong> {{ .Order.UserEmail }}</div>
+      <div><strong>SĐT nhận hàng:</strong> {{ .Order.ShippingPhone }}</div>
+      <div><strong>Ngày tạo:</strong> {{ .Order.CreatedAt.Format "02/01/2006 15:04:05" }}</div>
+      <div style="grid-column:1 / -1"><strong>Địa chỉ giao hàng:</strong> {{ .Order.ShippingAddress }}</div>
+      {{ if .Order.Notes }}
+      <div style="grid-column:1 / -1"><strong>Ghi chú:</strong> {{ .Order.Notes }}</div>
+      {{ end }}
+      <div><strong>Tổng tiền:</strong> {{ printf "%.0f" .Order.TotalAmount }}đ</div>
+    </div>
+
+    <hr style="margin:18px 0;border:none;border-top:1px solid #eee" />
+
+    <form method="POST" action="/admin/orders/{{ .Order.ID }}/status" style="display:flex;gap:10px;align-items:flex-end;max-width:420px">
+      <div class="form-group" style="margin-bottom:0;flex:1">
+        <label class="form-label">Cập nhật trạng thái</label>
+        <select name="status" class="form-control" required>
+          <option value="pending" {{ if eq .Order.Status "pending" }}selected{{ end }}>Pending</option>
+          <option value="confirmed" {{ if eq .Order.Status "confirmed" }}selected{{ end }}>Confirmed</option>
+          <option value="processing" {{ if eq .Order.Status "processing" }}selected{{ end }}>Processing</option>
+          <option value="shipping" {{ if eq .Order.Status "shipping" }}selected{{ end }}>Shipping</option>
+          <option value="delivered" {{ if eq .Order.Status "delivered" }}selected{{ end }}>Delivered</option>
+          <option value="cancelled" {{ if eq .Order.Status "cancelled" }}selected{{ end }}>Cancelled</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">Lưu trạng thái</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Danh sách món</h3>
+    </div>
+
+    {{ if .Order.Items }}
+    <table>
+      <thead>
+        <tr>
+          <th style="width:50px">ID</th>
+          <th>Tên sản phẩm</th>
+          <th>Đơn giá</th>
+          <th>Số lượng</th>
+          <th>Thành tiền</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{ range .Order.Items }}
+        <tr>
+          <td>{{ .ID }}</td>
+          <td>
+            <strong>{{ .ProductName }}</strong><br/>
+            <small style="color:#888">Product #{{ .ProductID }}</small>
+          </td>
+          <td>{{ printf "%.0f" .ProductPrice }}đ</td>
+          <td>{{ .Quantity }}</td>
+          <td style="font-weight:600">{{ printf "%.0f" .Subtotal }}đ</td>
+        </tr>
+        {{ end }}
+      </tbody>
+    </table>
+    {{ else }}
+    <div style="color:#888">Đơn hàng chưa có item.</div>
+    {{ end }}
+  </div>
+</div>
+{{ end }}
