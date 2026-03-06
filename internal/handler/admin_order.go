@@ -13,34 +13,14 @@ import (
 	"github.com/kha/foods-drinks/internal/service"
 )
 
-type adminOrderListQuery struct {
-	Status   string
-	FromDate string
-	ToDate   string
-	SortBy   string
-	SortDir  string
-	Page     int
-}
-
-func (q adminOrderListQuery) URLParams() string {
-	parts := []string{}
-	if q.Status != "" {
-		parts = append(parts, "status="+q.Status)
-	}
-	if q.FromDate != "" {
-		parts = append(parts, "from_date="+q.FromDate)
-	}
-	if q.ToDate != "" {
-		parts = append(parts, "to_date="+q.ToDate)
-	}
-	if q.SortBy != "" {
-		parts = append(parts, "sort_by="+q.SortBy)
-	}
-	if q.SortDir != "" {
-		parts = append(parts, "sort_dir="+q.SortDir)
-	}
-	return strings.Join(parts, "&")
-}
+const (
+	adminOrdersMenu      = "orders"
+	adminOrdersTitle     = "Đơn hàng"
+	adminOrderFlash      = "flash_order"
+	adminOrdersPath      = "/admin/orders"
+	adminOrdersTplList   = "order_list"
+	adminOrdersTplDetail = "order_detail"
+)
 
 type AdminOrderHandler struct {
 	orderService *service.OrderService
@@ -53,10 +33,10 @@ func NewAdminOrderHandler(orderService *service.OrderService, funcMap template.F
 	return &AdminOrderHandler{
 		orderService: orderService,
 		listTmpl: template.Must(
-			template.New("order_list").Funcs(funcMap).ParseFiles(layout, "templates/admin/orders/list.html"),
+			template.New(adminOrdersTplList).Funcs(funcMap).ParseFiles(layout, "templates/admin/orders/list.html"),
 		),
 		detailTmpl: template.Must(
-			template.New("order_detail").Funcs(funcMap).ParseFiles(layout, "templates/admin/orders/detail.html"),
+			template.New(adminOrdersTplDetail).Funcs(funcMap).ParseFiles(layout, "templates/admin/orders/detail.html"),
 		),
 	}
 }
@@ -72,15 +52,15 @@ func (h *AdminOrderHandler) render(c *gin.Context, status int, tmpl *template.Te
 }
 
 func (h *AdminOrderHandler) setFlash(c *gin.Context, t, msg string) {
-	c.SetCookie("flash_order", t+"|"+msg, 0, "/", "", false, true)
+	c.SetCookie(adminOrderFlash, t+"|"+msg, 0, "/", "", false, true)
 }
 
 func (h *AdminOrderHandler) getFlash(c *gin.Context) *flash {
-	val, err := c.Cookie("flash_order")
+	val, err := c.Cookie(adminOrderFlash)
 	if err != nil || val == "" {
 		return nil
 	}
-	c.SetCookie("flash_order", "", -1, "/", "", false, true)
+	c.SetCookie(adminOrderFlash, "", -1, "/", "", false, true)
 	parts := strings.SplitN(val, "|", 2)
 	if len(parts) != 2 {
 		return nil
@@ -89,43 +69,37 @@ func (h *AdminOrderHandler) getFlash(c *gin.Context) *flash {
 }
 
 func (h *AdminOrderHandler) List(c *gin.Context) {
-	q := adminOrderListQuery{
+	q := dto.AdminOrderListRequest{
 		Status:   strings.TrimSpace(c.Query("status")),
 		FromDate: strings.TrimSpace(c.Query("from_date")),
 		ToDate:   strings.TrimSpace(c.Query("to_date")),
 		SortBy:   strings.TrimSpace(c.DefaultQuery("sort_by", "created_at")),
 		SortDir:  strings.TrimSpace(c.DefaultQuery("sort_dir", "desc")),
 		Page:     1,
+		PageSize: 15,
 	}
 	if p, err := strconv.Atoi(c.Query("page")); err == nil && p > 0 {
 		q.Page = p
 	}
 
-	req := &dto.AdminOrderListRequest{
-		Page:     q.Page,
-		PageSize: 15,
-		Status:   q.Status,
-		FromDate: q.FromDate,
-		ToDate:   q.ToDate,
-		SortBy:   q.SortBy,
-		SortDir:  q.SortDir,
-	}
-
-	result, err := h.orderService.ListOrdersForAdmin(req)
+	result, err := h.orderService.ListOrdersForAdmin(&q)
 	if err != nil {
 		h.render(c, http.StatusInternalServerError, h.listTmpl, gin.H{
-			"Title":      "Đơn hàng",
-			"ActiveMenu": "orders",
+			"Title":      adminOrdersTitle,
+			"ActiveMenu": adminOrdersMenu,
 			"Flash":      &flash{Type: flashTypeErr, Message: "Lỗi khi tải danh sách đơn hàng: " + err.Error()},
 		})
 		return
 	}
 
-	orders, _ := result.Items.([]dto.OrderResponse)
+	orders, ok := result.Items.([]dto.OrderResponse)
+	if !ok {
+		orders = []dto.OrderResponse{}
+	}
 
 	h.render(c, http.StatusOK, h.listTmpl, gin.H{
-		"Title":      "Đơn hàng",
-		"ActiveMenu": "orders",
+		"Title":      adminOrdersTitle,
+		"ActiveMenu": adminOrdersMenu,
 		"Flash":      h.getFlash(c),
 		"Orders":     orders,
 		"Query":      q,
@@ -142,20 +116,20 @@ func (h *AdminOrderHandler) Detail(c *gin.Context) {
 	id, ok := h.parseIDParam(c)
 	if !ok {
 		h.setFlash(c, flashTypeErr, "ID đơn hàng không hợp lệ.")
-		c.Redirect(http.StatusFound, "/admin/orders")
+		c.Redirect(http.StatusFound, adminOrdersPath)
 		return
 	}
 
 	order, err := h.orderService.GetOrderDetailForAdmin(id)
 	if err != nil {
 		h.setFlash(c, flashTypeErr, "Không tìm thấy đơn hàng.")
-		c.Redirect(http.StatusFound, "/admin/orders")
+		c.Redirect(http.StatusFound, adminOrdersPath)
 		return
 	}
 
 	h.render(c, http.StatusOK, h.detailTmpl, gin.H{
-		"Title":      fmt.Sprintf("Đơn hàng #%s", order.OrderNumber),
-		"ActiveMenu": "orders",
+		"Title":      fmt.Sprintf("%s #%s", adminOrdersTitle, order.OrderNumber),
+		"ActiveMenu": adminOrdersMenu,
 		"Flash":      h.getFlash(c),
 		"Order":      order,
 	})
@@ -165,7 +139,7 @@ func (h *AdminOrderHandler) UpdateStatus(c *gin.Context) {
 	id, ok := h.parseIDParam(c)
 	if !ok {
 		h.setFlash(c, flashTypeErr, "ID đơn hàng không hợp lệ.")
-		c.Redirect(http.StatusFound, "/admin/orders")
+		c.Redirect(http.StatusFound, adminOrdersPath)
 		return
 	}
 

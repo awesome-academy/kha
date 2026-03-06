@@ -4,14 +4,18 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"github.com/kha/foods-drinks/internal/dto"
 	"github.com/kha/foods-drinks/internal/middleware"
 	"github.com/kha/foods-drinks/internal/service"
 )
+
+var shippingPhonePattern = regexp.MustCompile(`^[0-9+\-()\s]+$`)
 
 type OrderHandler struct {
 	orderService *service.OrderService
@@ -47,9 +51,18 @@ func (h *OrderHandler) Create(c *gin.Context) {
 
 	var req dto.CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		h.handleCreateOrderValidationError(c, err)
+		return
+	}
+
+	req.ShippingAddress = strings.TrimSpace(req.ShippingAddress)
+	req.ShippingPhone = strings.TrimSpace(req.ShippingPhone)
+
+	if details := validateCreateOrderRequest(&req); len(details) > 0 {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
 			Error:   "validation_error",
-			Message: "Invalid request: " + err.Error(),
+			Message: "Validation failed",
+			Details: details,
 		})
 		return
 	}
@@ -211,4 +224,76 @@ func parsePositiveUint64(raw string) (uint64, bool) {
 	}
 
 	return id, true
+}
+
+func (h *OrderHandler) handleCreateOrderValidationError(c *gin.Context, err error) {
+	var ve validator.ValidationErrors
+	if errors.As(err, &ve) {
+		details := map[string]string{}
+		for _, fe := range ve {
+			field := strings.ToLower(fe.Field())
+			switch field {
+			case "shippingaddress":
+				field = "shipping_address"
+			case "shippingphone":
+				field = "shipping_phone"
+			case "notes":
+				field = "notes"
+			}
+
+			switch fe.Tag() {
+			case "required":
+				details[field] = field + " is required"
+			case "min":
+				details[field] = field + " must be at least " + fe.Param() + " characters"
+			case "max":
+				details[field] = field + " must be at most " + fe.Param() + " characters"
+			default:
+				details[field] = field + " is invalid"
+			}
+		}
+
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+			Error:   "validation_error",
+			Message: "Validation failed",
+			Details: details,
+		})
+		return
+	}
+
+	c.JSON(http.StatusBadRequest, dto.ErrorResponse{
+		Error:   "validation_error",
+		Message: "Invalid request body",
+	})
+}
+
+func validateCreateOrderRequest(req *dto.CreateOrderRequest) map[string]string {
+	details := map[string]string{}
+
+	if strings.TrimSpace(req.ShippingAddress) == "" {
+		details["shipping_address"] = "shipping_address is required"
+	}
+
+	phone := strings.TrimSpace(req.ShippingPhone)
+	if phone == "" {
+		details["shipping_phone"] = "shipping_phone is required"
+		return details
+	}
+
+	if !shippingPhonePattern.MatchString(phone) {
+		details["shipping_phone"] = "shipping_phone contains invalid characters"
+		return details
+	}
+
+	digitCount := 0
+	for i := 0; i < len(phone); i++ {
+		if phone[i] >= '0' && phone[i] <= '9' {
+			digitCount++
+		}
+	}
+	if digitCount < 8 {
+		details["shipping_phone"] = "shipping_phone must include at least 8 digits"
+	}
+
+	return details
 }

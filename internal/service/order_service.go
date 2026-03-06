@@ -178,9 +178,19 @@ func (s *OrderService) ListOrders(userID uint, req *dto.OrderListRequest) (*dto.
 		return nil, fmt.Errorf("failed to list orders: %w", err)
 	}
 
+	orderIDs := make([]uint, 0, len(orders))
+	for _, order := range orders {
+		orderIDs = append(orderIDs, order.ID)
+	}
+	itemCounts, err := s.orderRepo.CountItemsByOrderIDs(orderIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count order items: %w", err)
+	}
+
 	items := make([]dto.OrderResponse, len(orders))
 	for i, order := range orders {
-		items[i] = *s.toResponse(&order, true)
+		items[i] = *s.toResponse(&order, false)
+		items[i].ItemCount = itemCounts[order.ID]
 	}
 
 	totalPages := int(math.Ceil(float64(total) / float64(req.PageSize)))
@@ -200,7 +210,7 @@ func (s *OrderService) ListOrders(userID uint, req *dto.OrderListRequest) (*dto.
 func (s *OrderService) GetOrderDetail(userID, orderID uint) (*dto.OrderResponse, error) {
 	order, err := s.orderRepo.FindByIDAndUserID(orderID, userID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, repository.ErrOrderNotFound) {
 			return nil, ErrOrderNotFound
 		}
 		return nil, fmt.Errorf("failed to find order: %w", err)
@@ -263,7 +273,7 @@ func (s *OrderService) ListOrdersForAdmin(req *dto.AdminOrderListRequest) (*dto.
 func (s *OrderService) GetOrderDetailForAdmin(orderID uint) (*dto.OrderResponse, error) {
 	order, err := s.orderRepo.FindByID(orderID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+		if errors.Is(err, repository.ErrOrderNotFound) {
 			return nil, ErrOrderNotFound
 		}
 		return nil, fmt.Errorf("failed to find order: %w", err)
@@ -272,25 +282,35 @@ func (s *OrderService) GetOrderDetailForAdmin(orderID uint) (*dto.OrderResponse,
 }
 
 func (s *OrderService) UpdateOrderStatusForAdmin(orderID uint, status string) error {
-	order, err := s.orderRepo.FindByID(orderID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrOrderNotFound
-		}
-		return fmt.Errorf("failed to find order: %w", err)
-	}
-
 	status = strings.TrimSpace(status)
 	if !isValidOrderStatus(status) {
 		return ErrInvalidOrderStatus
 	}
-	if !canTransitionOrderStatus(order.Status, status) {
-		return ErrInvalidOrderStatus
-	}
 
-	order.Status = status
-	if err := s.orderRepo.Update(order); err != nil {
-		return fmt.Errorf("failed to update order status: %w", err)
+	err := s.orderRepo.GetDB().Transaction(func(tx *gorm.DB) error {
+		orderRepoTx := s.orderRepo.WithTx(tx)
+
+		order, err := orderRepoTx.FindByIDForUpdate(orderID)
+		if err != nil {
+			if errors.Is(err, repository.ErrOrderNotFound) {
+				return ErrOrderNotFound
+			}
+			return fmt.Errorf("failed to find order: %w", err)
+		}
+
+		if !canTransitionOrderStatus(order.Status, status) {
+			return ErrInvalidOrderStatus
+		}
+
+		order.Status = status
+		if err := orderRepoTx.Update(order); err != nil {
+			return fmt.Errorf("failed to update order status: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -316,6 +336,7 @@ func (s *OrderService) toResponse(order *models.Order, includeItems bool) *dto.O
 
 	if includeItems {
 		resp.Items = make([]dto.OrderItemResponse, 0, len(order.Items))
+		resp.ItemCount = len(order.Items)
 		for _, item := range order.Items {
 			resp.Items = append(resp.Items, dto.OrderItemResponse{
 				ID:           item.ID,

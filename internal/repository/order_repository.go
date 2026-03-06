@@ -1,11 +1,15 @@
 package repository
 
 import (
+	"errors"
 	"time"
 
 	"github.com/kha/foods-drinks/internal/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+var ErrOrderNotFound = errors.New("order not found")
 
 type OrderRepository struct {
 	db *gorm.DB
@@ -13,6 +17,10 @@ type OrderRepository struct {
 
 func NewOrderRepository(db *gorm.DB) *OrderRepository {
 	return &OrderRepository{db: db}
+}
+
+func (r *OrderRepository) GetDB() *gorm.DB {
+	return r.db
 }
 
 func (r *OrderRepository) WithTx(tx *gorm.DB) *OrderRepository {
@@ -38,6 +46,9 @@ func (r *OrderRepository) FindByIDAndUserID(orderID uint, userID uint) (*models.
 		}).
 		First(&order).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrOrderNotFound
+		}
 		return nil, err
 	}
 	return &order, nil
@@ -82,9 +93,6 @@ func (r *OrderRepository) ListByUserID(params OrderListParams) ([]models.Order, 
 	}
 
 	err := query.
-		Preload("Items", func(db *gorm.DB) *gorm.DB {
-			return db.Order("order_items.id ASC")
-		}).
 		Order("created_at DESC").
 		Offset(params.Offset).
 		Limit(params.Limit).
@@ -94,6 +102,34 @@ func (r *OrderRepository) ListByUserID(params OrderListParams) ([]models.Order, 
 	}
 
 	return orders, total, nil
+}
+
+func (r *OrderRepository) CountItemsByOrderIDs(orderIDs []uint) (map[uint]int, error) {
+	counts := make(map[uint]int)
+	if len(orderIDs) == 0 {
+		return counts, nil
+	}
+
+	type row struct {
+		OrderID uint
+		Count   int
+	}
+
+	rows := make([]row, 0, len(orderIDs))
+	err := r.db.Model(&models.OrderItem{}).
+		Select("order_id, COUNT(*) as count").
+		Where("order_id IN ?", orderIDs).
+		Group("order_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for _, row := range rows {
+		counts[row.OrderID] = row.Count
+	}
+
+	return counts, nil
 }
 
 func (r *OrderRepository) ListForAdmin(params AdminOrderListParams) ([]models.Order, int64, error) {
@@ -149,6 +185,23 @@ func (r *OrderRepository) FindByID(id uint) (*models.Order, error) {
 		}).
 		First(&order).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrOrderNotFound
+		}
+		return nil, err
+	}
+	return &order, nil
+}
+
+func (r *OrderRepository) FindByIDForUpdate(id uint) (*models.Order, error) {
+	var order models.Order
+	err := r.db.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).
+		First(&order).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrOrderNotFound
+		}
 		return nil, err
 	}
 	return &order, nil

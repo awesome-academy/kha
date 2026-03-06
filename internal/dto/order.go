@@ -1,6 +1,9 @@
 package dto
 
-import "time"
+import (
+	"net/url"
+	"time"
+)
 
 type CreateOrderRequest struct {
 	ShippingAddress string  `json:"shipping_address" binding:"required,max=2000"`
@@ -22,6 +25,7 @@ type OrderResponse struct {
 	UserID          uint                `json:"user_id"`
 	UserName        string              `json:"user_name,omitempty"`
 	UserEmail       string              `json:"user_email,omitempty"`
+	ItemCount       int                 `json:"item_count"`
 	OrderNumber     string              `json:"order_number"`
 	TotalAmount     float64             `json:"total_amount"`
 	Status          string              `json:"status"`
@@ -53,4 +57,24 @@ type AdminOrderListRequest struct {
 
 type AdminUpdateOrderStatusRequest struct {
 	Status string `form:"status" binding:"required,oneof=pending confirmed processing shipping delivered cancelled"`
+}
+
+func (q AdminOrderListRequest) URLParams() string {
+	params := url.Values{}
+	if q.Status != "" {
+		params.Set("status", q.Status)
+	}
+	if q.FromDate != "" {
+		params.Set("from_date", q.FromDate)
+	}
+	if q.ToDate != "" {
+		params.Set("to_date", q.ToDate)
+	}
+	if q.SortBy != "" {
+		params.Set("sort_by", q.SortBy)
+	}
+	if q.SortDir != "" {
+		params.Set("sort_dir", q.SortDir)
+	}
+	return params.Encode()
 }
