@@ -27,6 +27,7 @@ type RouterDependencies struct {
 	AdminOrderHandler    *handler.AdminOrderHandler
 	CartHandler          *handler.CartHandler
 	OrderHandler         *handler.OrderHandler
+	RatingHandler        *handler.RatingHandler
 	CorsMiddleware       gin.HandlerFunc
 	AuthMiddleware       *middleware.AuthMiddleware
 	UploadPath           string
@@ -80,6 +81,7 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 			products := public.Group("/products")
 			{
 				products.GET("", deps.ProductHandler.List)
+				products.GET("/:slug/ratings", deps.RatingHandler.ListByProduct)
 				products.GET("/:slug", deps.ProductHandler.GetBySlug)
 			}
 		}
@@ -107,6 +109,10 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 			protected.POST("/orders", deps.OrderHandler.Create)
 			protected.GET("/orders", deps.OrderHandler.List)
 			protected.GET("/orders/:id", deps.OrderHandler.GetDetail)
+
+			// Rating routes
+			protected.POST("/products/:slug/ratings", deps.RatingHandler.Create)
+			protected.PUT("/products/:slug/ratings", deps.RatingHandler.Update)
 		}
 
 	}

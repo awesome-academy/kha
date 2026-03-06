@@ -59,6 +59,7 @@ func main() {
 	productRepo := repository.NewProductRepository(db)
 	cartRepo := repository.NewCartRepository(db)
 	orderRepo := repository.NewOrderRepository(db)
+	ratingRepo := repository.NewRatingRepository(db)
 
 	cartService := service.NewCartService(cartRepo, productRepo)
 	authService := service.NewAuthService(userRepo, cartService, &cfg.JWT)
@@ -67,6 +68,7 @@ func main() {
 	categoryService := service.NewCategoryService(categoryRepo)
 	productService := service.NewProductService(productRepo, categoryRepo)
 	orderService := service.NewOrderService(orderRepo, cartRepo, productRepo)
+	ratingService := service.NewRatingService(ratingRepo, productRepo)
 
 	funcMap := template.FuncMap{
 		"inc": func(i int) int { return i + 1 },
@@ -89,6 +91,7 @@ func main() {
 	adminOrderHandler := handler.NewAdminOrderHandler(orderService, funcMap)
 	cartHandler := handler.NewCartHandler(cartService)
 	orderHandler := handler.NewOrderHandler(orderService)
+	ratingHandler := handler.NewRatingHandler(ratingService)
 
 	authMiddleware := middleware.NewAuthMiddleware(authService)
 
@@ -103,6 +106,7 @@ func main() {
 		AdminOrderHandler:    adminOrderHandler,
 		CartHandler:          cartHandler,
 		OrderHandler:         orderHandler,
+		RatingHandler:        ratingHandler,
 		CorsMiddleware:       middleware.CORSConfig(),
 		AuthMiddleware:       authMiddleware,
 		UploadPath:           cfg.Upload.Path,
