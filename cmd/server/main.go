@@ -60,6 +60,7 @@ func main() {
 	cartRepo := repository.NewCartRepository(db)
 	orderRepo := repository.NewOrderRepository(db)
 	ratingRepo := repository.NewRatingRepository(db)
+	suggestionRepo := repository.NewSuggestionRepository(db)
 
 	cartService := service.NewCartService(cartRepo, productRepo)
 	authService := service.NewAuthService(userRepo, cartService, &cfg.JWT)
@@ -69,6 +70,7 @@ func main() {
 	productService := service.NewProductService(productRepo, categoryRepo)
 	orderService := service.NewOrderService(orderRepo, cartRepo, productRepo)
 	ratingService := service.NewRatingService(ratingRepo, productRepo)
+	suggestionService := service.NewSuggestionService(suggestionRepo, categoryRepo)
 
 	funcMap := template.FuncMap{
 		"inc": func(i int) int { return i + 1 },
@@ -89,27 +91,31 @@ func main() {
 	productHandler := handler.NewProductHandler(productService)
 	adminProductHandler := handler.NewAdminProductHandler(productService, categoryService, funcMap)
 	adminOrderHandler := handler.NewAdminOrderHandler(orderService, funcMap)
+	adminSuggestionHandler := handler.NewAdminSuggestionHandler(suggestionService, funcMap)
 	cartHandler := handler.NewCartHandler(cartService)
 	orderHandler := handler.NewOrderHandler(orderService)
 	ratingHandler := handler.NewRatingHandler(ratingService)
+	suggestionHandler := handler.NewSuggestionHandler(suggestionService)
 
 	authMiddleware := middleware.NewAuthMiddleware(authService)
 
 	deps := &routes.RouterDependencies{
-		HealthHandler:        healthHandler,
-		AuthHandler:          authHandler,
-		OAuthHandler:         oauthHandler,
-		ProfileHandler:       profileHandler,
-		AdminCategoryHandler: adminCategoryHandler,
-		ProductHandler:       productHandler,
-		AdminProductHandler:  adminProductHandler,
-		AdminOrderHandler:    adminOrderHandler,
-		CartHandler:          cartHandler,
-		OrderHandler:         orderHandler,
-		RatingHandler:        ratingHandler,
-		CorsMiddleware:       middleware.CORSConfig(),
-		AuthMiddleware:       authMiddleware,
-		UploadPath:           cfg.Upload.Path,
+		HealthHandler:          healthHandler,
+		AuthHandler:            authHandler,
+		OAuthHandler:           oauthHandler,
+		ProfileHandler:         profileHandler,
+		AdminCategoryHandler:   adminCategoryHandler,
+		ProductHandler:         productHandler,
+		AdminProductHandler:    adminProductHandler,
+		AdminOrderHandler:      adminOrderHandler,
+		AdminSuggestionHandler: adminSuggestionHandler,
+		CartHandler:            cartHandler,
+		OrderHandler:           orderHandler,
+		RatingHandler:          ratingHandler,
+		SuggestionHandler:      suggestionHandler,
+		CorsMiddleware:         middleware.CORSConfig(),
+		AuthMiddleware:         authMiddleware,
+		UploadPath:             cfg.Upload.Path,
 	}
 	router := routes.SetupRouter(deps)
 

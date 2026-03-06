@@ -1,0 +1,129 @@
+{{ template "layout" . }}
+
+{{ define "page_content" }}
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">Đề xuất sản phẩm</h2>
+  </div>
+
+  <form method="GET" action="/admin/suggestions" class="filter-bar">
+    <div class="form-group">
+      <label class="form-label">Tìm kiếm</label>
+      <input type="text" name="search" class="form-control" placeholder="Tên đề xuất..." value="{{ .Query.Search }}" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Trạng thái</label>
+      <select name="status" class="form-control">
+        <option value="">Tất cả</option>
+        <option value="pending" {{ if eq .Query.Status "pending" }}selected{{ end }}>Pending</option>
+        <option value="approved" {{ if eq .Query.Status "approved" }}selected{{ end }}>Approved</option>
+        <option value="rejected" {{ if eq .Query.Status "rejected" }}selected{{ end }}>Rejected</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Phân loại</label>
+      <select name="classify" class="form-control">
+        <option value="">Tất cả</option>
+        <option value="food" {{ if eq .Query.Classify "food" }}selected{{ end }}>Food</option>
+        <option value="drink" {{ if eq .Query.Classify "drink" }}selected{{ end }}>Drink</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Sắp xếp</label>
+      <select name="sort_by" class="form-control">
+        <option value="created_at" {{ if eq .Query.SortBy "created_at" }}selected{{ end }}>Ngày tạo</option>
+        <option value="status" {{ if eq .Query.SortBy "status" }}selected{{ end }}>Trạng thái</option>
+        <option value="name" {{ if eq .Query.SortBy "name" }}selected{{ end }}>Tên</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">&nbsp;</label>
+      <button type="submit" class="btn btn-outline">Lọc</button>
+    </div>
+  </form>
+
+  {{ if .Suggestions }}
+  <table>
+    <thead>
+      <tr>
+        <th style="width:50px">ID</th>
+        <th>Đề xuất</th>
+        <th>User</th>
+        <th>Danh mục</th>
+        <th>Loại</th>
+        <th>Trạng thái</th>
+        <th style="width:320px">Duyệt / Từ chối</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .Suggestions }}
+      <tr>
+        <td>{{ .ID }}</td>
+        <td>
+          <strong>{{ .Name }}</strong>
+          {{ if .Description }}<br/><small style="color:#777">{{ deref .Description }}</small>{{ end }}
+          {{ if .AdminNote }}<br/><small style="color:#b45309"><strong>Admin note:</strong> {{ deref .AdminNote }}</small>{{ end }}
+        </td>
+        <td>
+          {{ if .UserName }}{{ .UserName }}{{ else }}User #{{ .UserID }}{{ end }}
+        </td>
+        <td>
+          {{ if .CategoryName }}{{ .CategoryName }}{{ else }}-{{ end }}
+        </td>
+        <td>{{ .Classify }}</td>
+        <td>
+          {{ if eq .Status "pending" }}
+            <span class="badge" style="background:#e5e7eb;color:#374151">Pending</span>
+          {{ else if eq .Status "approved" }}
+            <span class="badge badge-active">Approved</span>
+          {{ else }}
+            <span class="badge badge-inactive">Rejected</span>
+          {{ end }}
+        </td>
+        <td>
+          {{ if eq .Status "pending" }}
+          <form method="POST" action="/admin/suggestions/{{ .ID }}/status" style="display:flex;gap:8px;align-items:center">
+            <input type="text" name="admin_note" class="form-control" placeholder="Ghi chú admin (tuỳ chọn)" />
+            <button type="submit" name="status" value="approved" class="btn btn-sm btn-primary">Approve</button>
+            <button type="submit" name="status" value="rejected" class="btn btn-sm btn-danger">Reject</button>
+          </form>
+          {{ else }}
+          <small style="color:#888">Đã xử lý</small>
+          {{ end }}
+        </td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
+    <span style="font-size:.85rem;color:#888">Tổng {{ .Pagination.Total }} đề xuất</span>
+    {{ if gt .Pagination.TotalPages 1 }}
+    <div class="pagination">
+      {{ if gt .Pagination.Page 1 }}
+        <a href="?{{ .Query.URLParams }}&page={{ dec .Pagination.Page }}">&lsaquo;</a>
+      {{ else }}
+        <span class="disabled">&lsaquo;</span>
+      {{ end }}
+
+      {{ range .Pagination.Pages }}
+        {{ if eq . $.Pagination.Page }}
+          <span class="active">{{ . }}</span>
+        {{ else }}
+          <a href="?{{ $.Query.URLParams }}&page={{ . }}">{{ . }}</a>
+        {{ end }}
+      {{ end }}
+
+      {{ if lt .Pagination.Page .Pagination.TotalPages }}
+        <a href="?{{ .Query.URLParams }}&page={{ inc .Pagination.Page }}">&rsaquo;</a>
+      {{ else }}
+        <span class="disabled">&rsaquo;</span>
+      {{ end }}
+    </div>
+    {{ end }}
+  </div>
+  {{ else }}
+  <div style="text-align:center;padding:48px;color:#aaa">Chưa có đề xuất nào.</div>
+  {{ end }}
+</div>
+{{ end }}
