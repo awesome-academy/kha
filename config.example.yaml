@@ -43,3 +43,17 @@ upload:
     - "png"
     - "webp"
 
+email:
+  enabled: false
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+  username: "your-email@gmail.com"
+  password: "your-app-password"
+  from_email: "no-reply@foods-drinks.local"
+  from_name: "Foods & Drinks"
+  admin_recipient: "admin@foods-drinks.local"
+  subject_prefix: "[Foods & Drinks]"
+  order_template_path: "templates/email/new_order.html"
+  max_retries: 3
+  retry_delay_seconds: 3
+

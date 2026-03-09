@@ -14,6 +14,22 @@ type Config struct {
 	JWT      JWTConfig      `mapstructure:"jwt"`
 	OAuth    OAuthConfig    `mapstructure:"oauth"`
 	Upload   UploadConfig   `mapstructure:"upload"`
+	Email    EmailConfig    `mapstructure:"email"`
+}
+
+type EmailConfig struct {
+	Enabled           bool   `mapstructure:"enabled"`
+	SMTPHost          string `mapstructure:"smtp_host"`
+	SMTPPort          int    `mapstructure:"smtp_port"`
+	Username          string `mapstructure:"username"`
+	Password          string `mapstructure:"password"`
+	FromEmail         string `mapstructure:"from_email"`
+	FromName          string `mapstructure:"from_name"`
+	AdminRecipient    string `mapstructure:"admin_recipient"`
+	SubjectPrefix     string `mapstructure:"subject_prefix"`
+	OrderTemplatePath string `mapstructure:"order_template_path"`
+	MaxRetries        int    `mapstructure:"max_retries"`
+	RetryDelaySeconds int    `mapstructure:"retry_delay_seconds"`
 }
 
 type UploadConfig struct {

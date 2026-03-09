@@ -112,6 +112,22 @@ make migrate-down-steps STEPS=1
 make migrate-force VERSION=12
 ```
 
+## Test Email Notification Locally
+
+Project is pre-configured to use MailHog in `config.yaml`:
+
+- SMTP host: `localhost`
+- SMTP port: `1025`
+- Mail inbox UI: `http://localhost:8025`
+
+Run services:
+
+```bash
+docker compose up -d
+```
+
+Then run server and create a new order. Email notification will be sent to MailHog and you can view it in the UI at `http://localhost:8025`.
+
 ## Database Schema
 
 Hệ thống bao gồm 12 bảng:
