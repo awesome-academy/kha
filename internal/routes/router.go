@@ -17,19 +17,22 @@ const UploadURLPrefix = "/uploads"
 
 // RouterDependencies holds all dependencies for router setup
 type RouterDependencies struct {
-	HealthHandler        *handler.HealthHandler
-	AuthHandler          *handler.AuthHandler
-	OAuthHandler         *handler.OAuthHandler
-	ProfileHandler       *handler.ProfileHandler
-	AdminCategoryHandler *handler.AdminCategoryHandler
-	ProductHandler       *handler.ProductHandler
-	AdminProductHandler  *handler.AdminProductHandler
-	AdminOrderHandler    *handler.AdminOrderHandler
-	CartHandler          *handler.CartHandler
-	OrderHandler         *handler.OrderHandler
-	CorsMiddleware       gin.HandlerFunc
-	AuthMiddleware       *middleware.AuthMiddleware
-	UploadPath           string
+	HealthHandler          *handler.HealthHandler
+	AuthHandler            *handler.AuthHandler
+	OAuthHandler           *handler.OAuthHandler
+	ProfileHandler         *handler.ProfileHandler
+	AdminCategoryHandler   *handler.AdminCategoryHandler
+	ProductHandler         *handler.ProductHandler
+	AdminProductHandler    *handler.AdminProductHandler
+	AdminOrderHandler      *handler.AdminOrderHandler
+	AdminSuggestionHandler *handler.AdminSuggestionHandler
+	CartHandler            *handler.CartHandler
+	OrderHandler           *handler.OrderHandler
+	RatingHandler          *handler.RatingHandler
+	SuggestionHandler      *handler.SuggestionHandler
+	CorsMiddleware         gin.HandlerFunc
+	AuthMiddleware         *middleware.AuthMiddleware
+	UploadPath             string
 }
 
 func SetupRouter(deps *RouterDependencies) *gin.Engine {
@@ -80,6 +83,7 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 			products := public.Group("/products")
 			{
 				products.GET("", deps.ProductHandler.List)
+				products.GET("/:slug/ratings", deps.RatingHandler.ListByProduct)
 				products.GET("/:slug", deps.ProductHandler.GetBySlug)
 			}
 		}
@@ -107,6 +111,13 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 			protected.POST("/orders", deps.OrderHandler.Create)
 			protected.GET("/orders", deps.OrderHandler.List)
 			protected.GET("/orders/:id", deps.OrderHandler.GetDetail)
+
+			// Rating routes
+			protected.POST("/products/:slug/ratings", deps.RatingHandler.Create)
+			protected.PUT("/products/:slug/ratings", deps.RatingHandler.Update)
+
+			// Suggestion routes
+			protected.POST("/suggestions", deps.SuggestionHandler.Create)
 		}
 
 	}
@@ -139,6 +150,12 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 			orders.GET("", deps.AdminOrderHandler.List)
 			orders.GET("/:id", deps.AdminOrderHandler.Detail)
 			orders.POST("/:id/status", deps.AdminOrderHandler.UpdateStatus)
+		}
+
+		suggestions := adminSSR.Group("/suggestions")
+		{
+			suggestions.GET("", deps.AdminSuggestionHandler.List)
+			suggestions.POST("/:id/status", deps.AdminSuggestionHandler.UpdateStatus)
 		}
 	}
 
