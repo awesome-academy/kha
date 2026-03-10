@@ -20,13 +20,19 @@ const defaultOrderTemplatePath = "templates/email/new_order.html"
 
 type EmailNotificationService struct {
 	cfg              *config.EmailConfig
-	notificationRepo *repository.OrderNotificationRepository
+	notificationRepo repository.OrderNotificationRepositoryInterface
 	orderTemplate    *template.Template
 	maxRetries       int
 	retryDelay       time.Duration
+	jobs             chan emailNotificationJob
 }
 
-func NewEmailNotificationService(cfg *config.EmailConfig, notificationRepo *repository.OrderNotificationRepository) *EmailNotificationService {
+type emailNotificationJob struct {
+	notificationID uint
+	order          *dto.OrderResponse
+}
+
+func NewEmailNotificationService(cfg *config.EmailConfig, notificationRepo repository.OrderNotificationRepositoryInterface) *EmailNotificationService {
 	if cfg == nil {
 		return nil
 	}
@@ -41,15 +47,32 @@ func NewEmailNotificationService(cfg *config.EmailConfig, notificationRepo *repo
 		retryDelay = 3 * time.Second
 	}
 
+	maxWorkers := cfg.MaxWorkers
+	if maxWorkers <= 0 {
+		maxWorkers = 4
+	}
+
+	queueSize := cfg.QueueSize
+	if queueSize <= 0 {
+		queueSize = 100
+	}
+
 	tpl := parseOrderTemplate(cfg.OrderTemplatePath)
 
-	return &EmailNotificationService{
+	svc := &EmailNotificationService{
 		cfg:              cfg,
 		notificationRepo: notificationRepo,
 		orderTemplate:    tpl,
 		maxRetries:       maxRetries,
 		retryDelay:       retryDelay,
+		jobs:             make(chan emailNotificationJob, queueSize),
 	}
+
+	for i := 0; i < maxWorkers; i++ {
+		go svc.worker()
+	}
+
+	return svc
 }
 
 func (s *EmailNotificationService) NotifyNewOrderAsync(order *dto.OrderResponse) {
@@ -74,7 +97,21 @@ func (s *EmailNotificationService) NotifyNewOrderAsync(order *dto.OrderResponse)
 		return
 	}
 
-	go s.sendWithRetry(notification.ID, order)
+	orderCopy := cloneOrderResponse(order)
+	job := emailNotificationJob{notificationID: notification.ID, order: orderCopy}
+
+	select {
+	case s.jobs <- job:
+	default:
+		s.markFailed(notification.ID, fmt.Errorf("notification queue is full"))
+		log.Printf("[notification] queue full, dropping notification %d", notification.ID)
+	}
+}
+
+func (s *EmailNotificationService) worker() {
+	for job := range s.jobs {
+		s.sendWithRetry(job.notificationID, job.order)
+	}
 }
 
 func (s *EmailNotificationService) sendWithRetry(notificationID uint, order *dto.OrderResponse) {
@@ -89,7 +126,13 @@ func (s *EmailNotificationService) sendWithRetry(notificationID uint, order *dto
 
 	for attempt := 1; attempt <= s.maxRetries; attempt++ {
 		if err := s.sendHTMLEmail(subject, body); err == nil {
-			if err := s.notificationRepo.MarkSent(notificationID, body, time.Now()); err != nil {
+			metadata := fmt.Sprintf("subject=%q; order_number=%s; total_amount=%.2f; item_count=%d",
+				subject,
+				order.OrderNumber,
+				order.TotalAmount,
+				len(order.Items),
+			)
+			if err := s.notificationRepo.MarkSent(notificationID, metadata, time.Now()); err != nil {
 				log.Printf("[notification] failed to mark notification %d as sent: %v", notificationID, err)
 			}
 			return
@@ -146,9 +189,14 @@ func (s *EmailNotificationService) sendHTMLEmail(subject, htmlBody string) error
 	}
 	message := strings.Join(headers, "\r\n") + "\r\n\r\n" + htmlBody
 
+	username := strings.TrimSpace(s.cfg.Username)
+	password := strings.TrimSpace(s.cfg.Password)
 	var auth smtp.Auth
-	if strings.TrimSpace(s.cfg.Username) != "" || strings.TrimSpace(s.cfg.Password) != "" {
-		auth = smtp.PlainAuth("", s.cfg.Username, s.cfg.Password, host)
+	if username != "" || password != "" {
+		if username == "" || password == "" {
+			return fmt.Errorf("both smtp username and password are required when smtp auth is enabled")
+		}
+		auth = smtp.PlainAuth("", username, password, host)
 	}
 
 	addr := fmt.Sprintf("%s:%d", host, port)
@@ -205,6 +253,18 @@ func resolveTemplatePath(path string) string {
 		return trimmed
 	}
 	return defaultOrderTemplatePath
+}
+
+func cloneOrderResponse(order *dto.OrderResponse) *dto.OrderResponse {
+	if order == nil {
+		return nil
+	}
+
+	copyOrder := *order
+	if len(order.Items) > 0 {
+		copyOrder.Items = append([]dto.OrderItemResponse(nil), order.Items...)
+	}
+	return &copyOrder
 }
 
 const defaultOrderEmailTemplate = `<!DOCTYPE html>

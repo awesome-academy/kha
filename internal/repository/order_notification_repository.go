@@ -11,6 +11,12 @@ type OrderNotificationRepository struct {
 	db *gorm.DB
 }
 
+type OrderNotificationRepositoryInterface interface {
+	Create(notification *models.OrderNotification) error
+	MarkSent(id uint, message string, sentAt time.Time) error
+	MarkFailed(id uint, errMessage string) error
+}
+
 func NewOrderNotificationRepository(db *gorm.DB) *OrderNotificationRepository {
 	return &OrderNotificationRepository{db: db}
 }

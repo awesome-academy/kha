@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"net/url"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -30,6 +32,8 @@ type EmailConfig struct {
 	OrderTemplatePath string `mapstructure:"order_template_path"`
 	MaxRetries        int    `mapstructure:"max_retries"`
 	RetryDelaySeconds int    `mapstructure:"retry_delay_seconds"`
+	MaxWorkers        int    `mapstructure:"max_workers"`
+	QueueSize         int    `mapstructure:"queue_size"`
 }
 
 type UploadConfig struct {
@@ -80,6 +84,7 @@ type OAuthProviderConfig struct {
 func LoadConfig(path string) (*Config, error) {
 	viper.SetConfigFile(path)
 	viper.SetConfigType("yaml")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	viper.AutomaticEnv()
 
@@ -92,7 +97,27 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
+	applySensitiveEnvOverrides(&config)
+
 	return &config, nil
+}
+
+func applySensitiveEnvOverrides(cfg *Config) {
+	if cfg == nil {
+		return
+	}
+
+	if value := strings.TrimSpace(os.Getenv("EMAIL_PASSWORD")); value != "" {
+		cfg.Email.Password = value
+	}
+
+	if value := strings.TrimSpace(os.Getenv("DATABASE_PASSWORD")); value != "" {
+		cfg.Database.Password = value
+	}
+
+	if value := strings.TrimSpace(os.Getenv("JWT_SECRET")); value != "" {
+		cfg.JWT.Secret = value
+	}
 }
 
 func (d *DatabaseConfig) DSN() string {

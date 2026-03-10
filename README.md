@@ -54,6 +54,14 @@ Copy file cấu hình mẫu và chỉnh sửa:
 cp config.example.yaml config.yaml
 ```
 
+Set secrets via environment variables (recommended):
+
+```bash
+export DATABASE_PASSWORD="your-db-password"
+export JWT_SECRET="your-jwt-secret"
+export EMAIL_PASSWORD="your-smtp-password"
+```
+
 Cập nhật thông tin database trong `config.yaml`:
 
 ```yaml
@@ -114,11 +122,34 @@ make migrate-force VERSION=12
 
 ## Test Email Notification Locally
 
-Project is pre-configured to use MailHog in `config.yaml`:
+Configure your local `config.yaml` to use MailHog (default values in `config.example.yaml`):
 
 - SMTP host: `localhost`
 - SMTP port: `1025`
 - Mail inbox UI: `http://localhost:8025`
+
+MailHog config snippet:
+
+```yaml
+email:
+  enabled: true
+  smtp_host: "localhost"
+  smtp_port: 1025
+  username: ""
+  password: ""
+  from_email: "no-reply@foods-drinks.local"
+  from_name: "Foods & Drinks"
+  admin_recipient: "admin@foods-drinks.local"
+  subject_prefix: "[Foods & Drinks]"
+  order_template_path: "templates/email/new_order.html"
+  max_retries: 3
+  retry_delay_seconds: 3
+  max_workers: 4
+  queue_size: 100
+```
+
+Note: current implementation uses plain SMTP via `net/smtp.SendMail` (no STARTTLS/SMTPS flow).
+Use MailHog for local testing, or a relay that accepts plain SMTP.
 
 Run services:
 
