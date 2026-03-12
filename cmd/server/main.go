@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"math"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -77,6 +80,30 @@ func main() {
 	funcMap := template.FuncMap{
 		"inc": func(i int) int { return i + 1 },
 		"dec": func(i int) int { return i - 1 },
+		"formatVND": func(amount float64) string {
+			value := int64(math.Round(amount))
+			sign := ""
+			if value < 0 {
+				sign = "-"
+				value = -value
+			}
+
+			raw := strconv.FormatInt(value, 10)
+			if len(raw) <= 3 {
+				return sign + raw + " đ"
+			}
+
+			parts := make([]string, 0, (len(raw)+2)/3)
+			for len(raw) > 3 {
+				parts = append([]string{raw[len(raw)-3:]}, parts...)
+				raw = raw[:len(raw)-3]
+			}
+			if raw != "" {
+				parts = append([]string{raw}, parts...)
+			}
+
+			return sign + strings.Join(parts, ".") + " đ"
+		},
 		"deref": func(s *string) string {
 			if s == nil {
 				return ""
@@ -93,6 +120,7 @@ func main() {
 	productHandler := handler.NewProductHandler(productService)
 	adminProductHandler := handler.NewAdminProductHandler(productService, categoryService, funcMap)
 	adminOrderHandler := handler.NewAdminOrderHandler(orderService, funcMap)
+	adminOrderStatsHandler := handler.NewAdminOrderStatisticsHandler(orderService, funcMap)
 	adminSuggestionHandler := handler.NewAdminSuggestionHandler(suggestionService, funcMap)
 	cartHandler := handler.NewCartHandler(cartService)
 	orderHandler := handler.NewOrderHandler(orderService)
@@ -110,6 +138,7 @@ func main() {
 		ProductHandler:         productHandler,
 		AdminProductHandler:    adminProductHandler,
 		AdminOrderHandler:      adminOrderHandler,
+		AdminOrderStatsHandler: adminOrderStatsHandler,
 		AdminSuggestionHandler: adminSuggestionHandler,
 		CartHandler:            cartHandler,
 		OrderHandler:           orderHandler,
