@@ -7,7 +7,6 @@ import (
 	"math"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -89,20 +88,30 @@ func main() {
 			}
 
 			raw := strconv.FormatInt(value, 10)
-			if len(raw) <= 3 {
-				return sign + raw + " đ"
+			n := len(raw)
+			if n <= 3 {
+				return sign + raw + "đ"
 			}
 
-			parts := make([]string, 0, (len(raw)+2)/3)
-			for len(raw) > 3 {
-				parts = append([]string{raw[len(raw)-3:]}, parts...)
-				raw = raw[:len(raw)-3]
-			}
-			if raw != "" {
-				parts = append([]string{raw}, parts...)
+			sepCount := (n - 1) / 3
+			buf := make([]byte, n+sepCount)
+			read := n - 1
+			write := len(buf) - 1
+			digitCount := 0
+
+			for read >= 0 {
+				buf[write] = raw[read]
+				read--
+				write--
+				digitCount++
+
+				if digitCount%3 == 0 && read >= 0 {
+					buf[write] = '.'
+					write--
+				}
 			}
 
-			return sign + strings.Join(parts, ".") + " đ"
+			return sign + string(buf) + "đ"
 		},
 		"deref": func(s *string) string {
 			if s == nil {

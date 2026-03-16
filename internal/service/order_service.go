@@ -17,11 +17,12 @@ import (
 )
 
 var (
-	ErrCartEmpty          = errors.New("cart is empty")
-	ErrOrderNotFound      = errors.New("order not found")
-	ErrInvalidDateFilter  = errors.New("invalid date filter")
-	ErrInvalidOrderInput  = errors.New("invalid order input")
-	ErrInvalidOrderStatus = errors.New("invalid order status transition")
+	ErrCartEmpty           = errors.New("cart is empty")
+	ErrOrderNotFound       = errors.New("order not found")
+	ErrInvalidDateFilter   = errors.New("invalid date filter")
+	ErrInvalidOrderInput   = errors.New("invalid order input")
+	ErrInvalidOrderStatus  = errors.New("invalid order status transition")
+	ErrInvalidStatusFilter = errors.New("invalid order status filter")
 )
 
 type OrderService struct {
@@ -345,7 +346,7 @@ func (s *OrderService) GetStatisticsForAdmin(req *dto.AdminOrderStatisticsReques
 
 	status := strings.TrimSpace(req.Status)
 	if status != "" && !isValidOrderStatus(status) {
-		return nil, ErrInvalidOrderStatus
+		return nil, ErrInvalidStatusFilter
 	}
 
 	fromDate, toDate, err := parseOrderDateRange(req.FromDate, req.ToDate)
