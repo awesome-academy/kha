@@ -70,7 +70,7 @@ func main() {
 	oauthService := service.NewOAuthService(userRepo, socialAuthRepo, cartRepo, authService, &cfg.OAuth)
 	profileService := service.NewProfileService(userRepo, &cfg.Upload, routes.UploadURLPrefix)
 	categoryService := service.NewCategoryService(categoryRepo)
-	productService := service.NewProductService(productRepo, categoryRepo)
+	productService := service.NewProductService(productRepo, categoryRepo, cfg.App.BaseURL)
 	emailNotificationService := service.NewEmailNotificationService(&cfg.Email, orderNotificationRepo)
 	chatworkNotificationService := service.NewChatworkNotificationService(&cfg.Chatwork, orderNotificationRepo)
 	notifier := service.NewMultiOrderNotifier(emailNotificationService, chatworkNotificationService)
