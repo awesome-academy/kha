@@ -1,0 +1,129 @@
+{{ template "layout" . }}
+
+{{ define "page_content" }}
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">Người dùng</h2>
+  </div>
+
+  <form method="GET" action="/admin/users" class="filter-bar">
+    <div class="form-group">
+      <label class="form-label">Tìm kiếm</label>
+      <input type="text" name="search" class="form-control" placeholder="Tên hoặc email..." value="{{ .Query.Search }}" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Trạng thái</label>
+      <select name="status" class="form-control">
+        <option value="">Tất cả</option>
+        <option value="active" {{ if eq .Query.Status "active" }}selected{{ end }}>Active</option>
+        <option value="inactive" {{ if eq .Query.Status "inactive" }}selected{{ end }}>Inactive</option>
+        <option value="banned" {{ if eq .Query.Status "banned" }}selected{{ end }}>Banned</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Vai trò</label>
+      <select name="role" class="form-control">
+        <option value="">Tất cả</option>
+        <option value="user" {{ if eq .Query.Role "user" }}selected{{ end }}>User</option>
+        <option value="admin" {{ if eq .Query.Role "admin" }}selected{{ end }}>Admin</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Sắp xếp</label>
+      <select name="sort_by" class="form-control">
+        <option value="created_at" {{ if eq .Query.SortBy "created_at" }}selected{{ end }}>Ngày tạo</option>
+        <option value="full_name" {{ if eq .Query.SortBy "full_name" }}selected{{ end }}>Họ tên</option>
+        <option value="email" {{ if eq .Query.SortBy "email" }}selected{{ end }}>Email</option>
+        <option value="role" {{ if eq .Query.SortBy "role" }}selected{{ end }}>Vai trò</option>
+        <option value="status" {{ if eq .Query.SortBy "status" }}selected{{ end }}>Trạng thái</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Hướng</label>
+      <select name="sort_dir" class="form-control">
+        <option value="desc" {{ if eq .Query.SortDir "desc" }}selected{{ end }}>Giảm dần</option>
+        <option value="asc" {{ if eq .Query.SortDir "asc" }}selected{{ end }}>Tăng dần</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">&nbsp;</label>
+      <button type="submit" class="btn btn-outline">Lọc</button>
+    </div>
+  </form>
+
+  {{ if .Users }}
+  <table>
+    <thead>
+      <tr>
+        <th style="width:50px">ID</th>
+        <th>Người dùng</th>
+        <th>Vai trò</th>
+        <th>Trạng thái</th>
+        <th>Ngày tạo</th>
+        <th style="width:90px">Chi tiết</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .Users }}
+      <tr>
+        <td>{{ .ID }}</td>
+        <td>
+          <strong>{{ .FullName }}</strong><br/>
+          <small style="color:#888">{{ .Email }}</small>
+        </td>
+        <td>
+          {{ if eq .Role "admin" }}
+            <span class="badge" style="background:#dbeafe;color:#1e40af">Admin</span>
+          {{ else }}
+            <span class="badge" style="background:#e5e7eb;color:#374151">User</span>
+          {{ end }}
+        </td>
+        <td>
+          {{ if eq .Status "active" }}
+            <span class="badge badge-active">Active</span>
+          {{ else if eq .Status "inactive" }}
+            <span class="badge" style="background:#fef3c7;color:#92400e">Inactive</span>
+          {{ else }}
+            <span class="badge badge-inactive">Banned</span>
+          {{ end }}
+        </td>
+        <td style="color:#888;font-size:.8rem">{{ .CreatedAt.Format "02/01/2006 15:04" }}</td>
+        <td>
+          <a href="/admin/users/{{ .ID }}" class="btn btn-sm btn-warning">Xem</a>
+        </td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
+    <span style="font-size:.85rem;color:#888">Tổng {{ .Pagination.Total }} người dùng</span>
+    {{ if gt .Pagination.TotalPages 1 }}
+    <div class="pagination">
+      {{ if gt .Pagination.Page 1 }}
+        <a href="?{{ .Query.URLParams }}&page={{ dec .Pagination.Page }}">&lsaquo;</a>
+      {{ else }}
+        <span class="disabled">&lsaquo;</span>
+      {{ end }}
+
+      {{ range .Pagination.Pages }}
+        {{ if eq . $.Pagination.Page }}
+          <span class="active">{{ . }}</span>
+        {{ else }}
+          <a href="?{{ $.Query.URLParams }}&page={{ . }}">{{ . }}</a>
+        {{ end }}
+      {{ end }}
+
+      {{ if lt .Pagination.Page .Pagination.TotalPages }}
+        <a href="?{{ .Query.URLParams }}&page={{ inc .Pagination.Page }}">&rsaquo;</a>
+      {{ else }}
+        <span class="disabled">&rsaquo;</span>
+      {{ end }}
+    </div>
+    {{ end }}
+  </div>
+  {{ else }}
+  <div style="text-align:center;padding:48px;color:#aaa">Chưa có người dùng nào.</div>
+  {{ end }}
+</div>
+{{ end }}

@@ -1,0 +1,52 @@
+{{ template "layout" . }}
+
+{{ define "page_content" }}
+<div>
+  <div style="margin-bottom:20px">
+    <a href="/admin/users" class="btn btn-outline btn-sm">&larr; Quay lại danh sách</a>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header">
+      <h2 class="card-title">Chi tiết người dùng #{{ .User.ID }}</h2>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:.9rem">
+      <div><strong>Họ tên:</strong> {{ .User.FullName }}</div>
+      <div><strong>Email:</strong> {{ .User.Email }}</div>
+      <div><strong>Vai trò:</strong> {{ .User.Role }}</div>
+      <div><strong>Trạng thái:</strong> {{ .User.Status }}</div>
+      <div><strong>Số điện thoại:</strong> {{ if .User.Phone }}{{ .User.Phone }}{{ else }}-{{ end }}</div>
+      <div><strong>Ngày tạo:</strong> {{ .User.CreatedAt.Format "02/01/2006 15:04:05" }}</div>
+      <div style="grid-column:1 / -1"><strong>Địa chỉ:</strong> {{ if .User.Address }}{{ .User.Address }}{{ else }}-{{ end }}</div>
+    </div>
+
+    <hr style="margin:18px 0;border:none;border-top:1px solid #eee" />
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:760px">
+      <form method="POST" action="/admin/users/{{ .User.ID }}/status" style="display:flex;gap:10px;align-items:flex-end">
+        <div class="form-group" style="margin-bottom:0;flex:1">
+          <label class="form-label">Cập nhật trạng thái</label>
+          <select name="status" class="form-control" required>
+            <option value="active" {{ if eq .User.Status "active" }}selected{{ end }}>Active</option>
+            <option value="inactive" {{ if eq .User.Status "inactive" }}selected{{ end }}>Inactive</option>
+            <option value="banned" {{ if eq .User.Status "banned" }}selected{{ end }}>Banned</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Lưu</button>
+      </form>
+
+      <form method="POST" action="/admin/users/{{ .User.ID }}/role" style="display:flex;gap:10px;align-items:flex-end">
+        <div class="form-group" style="margin-bottom:0;flex:1">
+          <label class="form-label">Cập nhật vai trò</label>
+          <select name="role" class="form-control" required>
+            <option value="user" {{ if eq .User.Role "user" }}selected{{ end }}>User</option>
+            <option value="admin" {{ if eq .User.Role "admin" }}selected{{ end }}>Admin</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Lưu</button>
+      </form>
+    </div>
+  </div>
+</div>
+{{ end }}

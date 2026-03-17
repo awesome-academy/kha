@@ -77,6 +77,7 @@ func main() {
 	orderService := service.NewOrderService(orderRepo, cartRepo, productRepo, notifier)
 	ratingService := service.NewRatingService(ratingRepo, productRepo)
 	suggestionService := service.NewSuggestionService(suggestionRepo, categoryRepo)
+	adminUserService := service.NewAdminUserService(userRepo)
 
 	scheduler := service.NewMonthlyReportScheduler(&cfg.Scheduler, &cfg.Email, orderService)
 	scheduler.Start()
@@ -137,6 +138,7 @@ func main() {
 	adminOrderHandler := handler.NewAdminOrderHandler(orderService, funcMap)
 	adminOrderStatsHandler := handler.NewAdminOrderStatisticsHandler(orderService, funcMap)
 	adminSuggestionHandler := handler.NewAdminSuggestionHandler(suggestionService, funcMap)
+	adminUserHandler := handler.NewAdminUserHandler(adminUserService, funcMap)
 	cartHandler := handler.NewCartHandler(cartService)
 	orderHandler := handler.NewOrderHandler(orderService)
 	ratingHandler := handler.NewRatingHandler(ratingService)
@@ -155,6 +157,7 @@ func main() {
 		AdminOrderHandler:      adminOrderHandler,
 		AdminOrderStatsHandler: adminOrderStatsHandler,
 		AdminSuggestionHandler: adminSuggestionHandler,
+		AdminUserHandler:       adminUserHandler,
 		CartHandler:            cartHandler,
 		OrderHandler:           orderHandler,
 		RatingHandler:          ratingHandler,

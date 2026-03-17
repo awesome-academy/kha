@@ -27,6 +27,7 @@ type RouterDependencies struct {
 	AdminOrderHandler      *handler.AdminOrderHandler
 	AdminOrderStatsHandler *handler.AdminOrderStatisticsHandler
 	AdminSuggestionHandler *handler.AdminSuggestionHandler
+	AdminUserHandler       *handler.AdminUserHandler
 	CartHandler            *handler.CartHandler
 	OrderHandler           *handler.OrderHandler
 	RatingHandler          *handler.RatingHandler
@@ -125,6 +126,7 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 
 	// Admin SSR routes — HTML pages
 	adminSSR := router.Group("/admin")
+	adminSSR.Use(deps.AuthMiddleware.OptionalAuth())
 	{
 		categories := adminSSR.Group("/categories")
 		{
@@ -158,6 +160,14 @@ func SetupRouter(deps *RouterDependencies) *gin.Engine {
 		{
 			suggestions.GET("", deps.AdminSuggestionHandler.List)
 			suggestions.POST("/:id/status", deps.AdminSuggestionHandler.UpdateStatus)
+		}
+
+		users := adminSSR.Group("/users")
+		{
+			users.GET("", deps.AdminUserHandler.List)
+			users.GET("/:id", deps.AdminUserHandler.Detail)
+			users.POST("/:id/status", deps.AdminUserHandler.UpdateStatus)
+			users.POST("/:id/role", deps.AdminUserHandler.UpdateRole)
 		}
 	}
 
